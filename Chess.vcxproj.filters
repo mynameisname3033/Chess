@@ -1,0 +1,99 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Header Files\Board">
+      <UniqueIdentifier>{49dada89-b601-4519-9597-2a9f7e467b54}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Board">
+      <UniqueIdentifier>{c5a643c4-fe11-4c33-80c7-0295fef1926e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Board\Action Generation">
+      <UniqueIdentifier>{290498bb-f6b1-48a6-bb5b-f8cd2d517e79}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Board\Action Generation">
+      <UniqueIdentifier>{739096f3-2f54-40e8-b345-d953e3d5333e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Bot">
+      <UniqueIdentifier>{fbf19129-42b9-43e8-9cc5-825ecb5fefe5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Bot">
+      <UniqueIdentifier>{9895afd7-4e95-4916-b3f3-acc7cf8e26b9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Types">
+      <UniqueIdentifier>{75cd7891-28eb-4092-9b66-6f4b263fd30c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Types">
+      <UniqueIdentifier>{6cea5473-baf3-490b-9e8d-e2dbfa520e90}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="board.h">
+      <Filter>Header Files\Board</Filter>
+    </ClInclude>
+    <ClInclude Include="action_list.h">
+      <Filter>Header Files\Types</Filter>
+    </ClInclude>
+    <ClInclude Include="action.h">
+      <Filter>Header Files\Types</Filter>
+    </ClInclude>
+    <ClInclude Include="piece.h">
+      <Filter>Header Files\Types</Filter>
+    </ClInclude>
+    <ClInclude Include="action_generator.h">
+      <Filter>Header Files\Board\Action Generation</Filter>
+    </ClInclude>
+    <ClInclude Include="init.h">
+      <Filter>Header Files\Board\Action Generation</Filter>
+    </ClInclude>
+    <ClInclude Include="bot.h">
+      <Filter>Header Files\Bot</Filter>
+    </ClInclude>
+    <ClInclude Include="transposition_table.h">
+      <Filter>Header Files\Bot</Filter>
+    </ClInclude>
+    <ClInclude Include="zobrist_hash.h">
+      <Filter>Header Files\Bot</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="board.cpp">
+      <Filter>Source Files\Board</Filter>
+    </ClCompile>
+    <ClCompile Include="action_generator.cpp">
+      <Filter>Source Files\Board\Action Generation</Filter>
+    </ClCompile>
+    <ClCompile Include="init.cpp">
+      <Filter>Source Files\Board\Action Generation</Filter>
+    </ClCompile>
+    <ClCompile Include="bot.cpp">
+      <Filter>Source Files\Bot</Filter>
+    </ClCompile>
+    <ClCompile Include="transposition_table.cpp">
+      <Filter>Source Files\Bot</Filter>
+    </ClCompile>
+    <ClCompile Include="zobrist_hash.cpp">
+      <Filter>Source Files\Bot</Filter>
+    </ClCompile>
+    <ClCompile Include="action.cpp">
+      <Filter>Source Files\Types</Filter>
+    </ClCompile>
+    <ClCompile Include="piece.cpp">
+      <Filter>Source Files\Types</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

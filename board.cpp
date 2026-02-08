@@ -1,9 +1,9 @@
 #include <iostream>
 #include <sstream>
 #include <cctype>
-#include <cassert>
 #include "action_generator.h"
 #include "zobrist_hash.h"
+#include "action.h"
 
 using namespace std;
 
@@ -50,12 +50,12 @@ void board::print(int highlight) const
 				cout << "  ";
 		}
 
-		cout << "\033[0m " << (rank + 1) << endl;
+		cout << "\033[0m " << rank + 1 << endl;
 	}
 
-	for (int file = 1; file <= 8; ++file)
+	for (int file = fileStart; file != fileEnd; file += fileStep)
 	{
-		cout << file << " ";
+		cout << (char)(file + 'a') << " ";
 	}
 	cout << endl;
 }
@@ -215,8 +215,8 @@ string board::get_fen() const
 	}
 	else
 	{
-		int file = en_passant_square % 8;
-		int rank = en_passant_square / 8;
+		int file = en_passant_square & 7;
+		int rank = en_passant_square >> 3;
 		fen += static_cast<char>('a' + file);
 		fen += static_cast<char>('1' + rank);
 	}
@@ -250,7 +250,9 @@ void board::make_action(uint16_t action)
 	hash ^= zobrist_piece[color][piece][to];
 
 	if (en_passant_square != -1)
-		hash ^= zobrist_ep[en_passant_square % 8];
+		hash ^= zobrist_ep[en_passant_square & 7];
+
+	++ply;
 
 	if (piece == KING)
 	{
@@ -396,7 +398,7 @@ void board::make_action(uint16_t action)
 			en_passant_square = color == WHITE ? to - 8 : to + 8;
 
 			if (en_passant_square != -1)
-				hash ^= zobrist_ep[en_passant_square % 8];
+				hash ^= zobrist_ep[en_passant_square & 7];
 		}
 
 		if (action_flags == EN_PASSANT)

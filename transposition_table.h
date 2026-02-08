@@ -8,6 +8,7 @@ enum TTFlag : uint8_t { EXACT, LOWERBOUND, UPPERBOUND };
 
 struct TTEntry
 {
+	uint64_t key;
 	uint16_t best_action;
 	int score = 0;
 	uint8_t depth_remaining = 0;
@@ -16,32 +17,34 @@ struct TTEntry
 
 struct transposition_table
 {
-	std::unordered_map<uint64_t, TTEntry> tt;
+	std::vector<TTEntry> table;
+	uint64_t mask;
 
-	transposition_table(int reserve);
-
-	inline const TTEntry* probe(uint64_t key) const
+	transposition_table(size_t size)
 	{
-		auto it = tt.find(key);
-		if (it == tt.end())
-			return nullptr;
+		table.resize(size);
+		mask = size - 1;
+	}
 
-		return &it->second;
+	inline TTEntry* probe(uint64_t key)
+	{
+		TTEntry& e = table[key & mask];
+		if (e.key == key)
+			return &e;
+		return nullptr;
 	}
 
 	inline void add(uint64_t key, uint16_t best_action, int score, uint8_t depth_remaining, uint8_t flag)
 	{
-		auto result = tt.try_emplace(key, TTEntry { best_action, score, depth_remaining, flag } );
-		if (result.second)
-			return;
+		TTEntry& e = table[key & mask];
 
-		TTEntry& entry = result.first->second;
-		if (depth_remaining >= entry.depth_remaining)
+		if (e.key != key || depth_remaining >= e.depth_remaining)
 		{
-			entry.best_action = best_action;
-			entry.score = score;
-			entry.depth_remaining = depth_remaining;
-			entry.flag = flag;
+			e.key = key;
+			e.best_action = best_action;
+			e.score = score;
+			e.depth_remaining = depth_remaining;
+			e.flag = flag;
 		}
 	}
 };

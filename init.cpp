@@ -5,6 +5,7 @@
 
 using namespace std;
 
+uint64_t aligned_mask[64][64];
 int dist_to_edge[64][8];
 
 uint64_t pawn_attacks[COLOR_NB][64];
@@ -27,8 +28,8 @@ static void init_dist_to_edge()
 {
 	for (int square = 0; square < 64; ++square)
 	{
-		int rank = square / 8;
-		int file = square % 8;
+		int rank = square >> 3;
+		int file = square & 7;
 
 		dist_to_edge[square][0] = min(7 - rank, 7 - file);
 		dist_to_edge[square][1] = min(7 - rank, file);
@@ -48,8 +49,8 @@ static void init_pawn_attacks()
 		uint64_t white_attacks = 0;
 		uint64_t black_attacks = 0;
 
-		int rank = square / 8;
-		int file = square % 8;
+		int rank = square >> 3;
+		int file = square & 7;
 
 		if (rank < 7 && file > 0)
 			white_attacks |= (1ull << ((rank + 1) * 8 + (file - 1)));
@@ -70,8 +71,8 @@ static void init_knight_attacks()
 	for (int square = 0; square < 64; ++square)
 	{
 		uint64_t attacks = 0;
-		int rank = square / 8;
-		int file = square % 8;
+		int rank = square >> 3;
+		int file = square & 7;
 
 		const int knight_actions[8][2] =
 		{
@@ -98,8 +99,8 @@ static void init_king_attacks()
 	for (int square = 0; square < 64; ++square)
 	{
 		uint64_t attacks = 0;
-		int rank = square / 8;
-		int file = square % 8;
+		int rank = square >> 3;
+		int file = square & 7;
 
 		const int king_actions[8][2] =
 		{
@@ -320,6 +321,62 @@ static void init_magic_numbers()
 	}
 }
 
+static inline int sign(int x) { return (x > 0) - (x < 0); }
+
+static void init_aligned_mask()
+{
+	for (int a = 0; a < 64; ++a)
+	{
+		for (int b = 0; b < 64; ++b)
+		{
+			aligned_mask[a][b] = 0;
+
+			if (a == b)
+			{
+				aligned_mask[a][b] = (1ull << a);
+				continue;
+			}
+
+			int ra = a >> 3, fa = a & 7;
+			int rb = b >> 3, fb = b & 7;
+
+			int dr = sign(rb - ra);
+			int df = sign(fb - fa);
+
+			if (!((dr == 0 && df != 0) ||
+				(df == 0 && dr != 0) ||
+				(abs(rb - ra) == abs(fb - fa))))
+			{
+				continue;
+			}
+
+			uint64_t mask = 0;
+
+			int r = ra, f = fa;
+			while (r >= 0 && r < 8 && f >= 0 && f < 8)
+			{
+				int sq = r * 8 + f;
+				mask |= (1ull << sq);
+				r += dr;
+				f += df;
+			}
+
+			r = ra - dr;
+			f = fa - df;
+			while (r >= 0 && r < 8 && f >= 0 && f < 8)
+			{
+				int sq = r * 8 + f;
+				mask |= (1ull << sq);
+				r -= dr;
+				f -= df;
+			}
+
+			aligned_mask[a][b] = mask;
+		}
+	}
+}
+
+
 void init_action_generator()
 {
 	init_dist_to_edge();
@@ -330,4 +387,6 @@ void init_action_generator()
 	compute_rook_masks();
 	compute_bishop_masks();
 	init_magic_numbers();
+	
+	init_aligned_mask();
 }

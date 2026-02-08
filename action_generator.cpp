@@ -29,15 +29,19 @@ inline bool is_square_attacked(const board& chess_board, int square, int by_colo
 	if (king_attacks[square] & chess_board.pieces[by_color][KING])
 		return true;
 
-	uint64_t blockers = occupied & bishop_masks[square];
-	uint64_t index = (blockers * bishop_magics[square]) >> bishop_shifts[square];
-	if (bishop_attacks[square][index] & (chess_board.pieces[by_color][BISHOP] | chess_board.pieces[by_color][QUEEN]))
-		return true;
+	{
+		uint64_t blockers = occupied & bishop_masks[square];
+		uint64_t index = (blockers * bishop_magics[square]) >> bishop_shifts[square];
+		if (bishop_attacks[square][index] & (chess_board.pieces[by_color][BISHOP] | chess_board.pieces[by_color][QUEEN]))
+			return true;
+	}
 
-	blockers = occupied & rook_masks[square];
-	index = (blockers * rook_magics[square]) >> rook_shifts[square];
-	if (rook_attacks[square][index] & (chess_board.pieces[by_color][ROOK] | chess_board.pieces[by_color][QUEEN]))
-		return true;
+	{
+		uint64_t blockers = occupied & rook_masks[square];
+		uint64_t index = (blockers * rook_magics[square]) >> rook_shifts[square];
+		if (rook_attacks[square][index] & (chess_board.pieces[by_color][ROOK] | chess_board.pieces[by_color][QUEEN]))
+			return true;
+	}
 
 	return false;
 }
@@ -55,7 +59,7 @@ static inline void generate_pseudo_legal_pawn_actions(const board& chess_board, 
 	bool color = chess_board.side_to_move;
 	uint64_t pawns = chess_board.pieces[color][PAWN];
 	uint64_t empty = ~(chess_board.occupied[WHITE] | chess_board.occupied[BLACK]);
-	uint64_t enemy = chess_board.occupied[!color];
+	uint64_t enemy = chess_board.occupied[color ^ 1];
 
 	uint64_t single_push = color == WHITE ? (pawns << 8) & empty : (pawns >> 8) & empty;
 
@@ -132,7 +136,6 @@ static inline void generate_pseudo_legal_knight_actions(const board& chess_board
 	uint64_t own = chess_board.occupied[color];
 
 	uint64_t knights = chess_board.pieces[color][KNIGHT];
-
 	while (knights)
 	{
 		int from = pop_lsb(knights);
@@ -152,7 +155,7 @@ static inline void generate_pseudo_legal_bishop_actions(const board& chess_board
 {
 	int color = chess_board.side_to_move;
 	uint64_t own = chess_board.occupied[color];
-	uint64_t enemy = chess_board.occupied[!color];
+	uint64_t enemy = chess_board.occupied[color ^ 1];
 	uint64_t occupied = own | enemy;
 
 	uint64_t bishops = chess_board.pieces[color][BISHOP];
@@ -178,7 +181,7 @@ static inline void generate_pseudo_legal_rook_actions(const board& chess_board, 
 {
 	int color = chess_board.side_to_move;
 	uint64_t own = chess_board.occupied[color];
-	uint64_t enemy = chess_board.occupied[!color];
+	uint64_t enemy = chess_board.occupied[color ^ 1];
 	uint64_t occupied = own | enemy;
 
 	uint64_t rooks = chess_board.pieces[color][ROOK];
@@ -204,7 +207,7 @@ static inline void generate_pseudo_legal_queen_actions(const board& chess_board,
 {
 	int color = chess_board.side_to_move;
 	uint64_t own = chess_board.occupied[color];
-	uint64_t enemy = chess_board.occupied[!color];
+	uint64_t enemy = chess_board.occupied[color ^ 1];
 	uint64_t occupied = own | enemy;
 
 	uint64_t queens = chess_board.pieces[color][QUEEN];
@@ -223,7 +226,6 @@ static inline void generate_pseudo_legal_queen_actions(const board& chess_board,
 		while (legal_queen_actions)
 		{
 			int to = pop_lsb(legal_queen_actions);
-			uint64_t to_mask = 1ull << to;
 
 			uint16_t action = create_action(from, to, QUIET);
 			pseudo_legal_actions.actions[pseudo_legal_actions.count++] = action;
@@ -235,7 +237,7 @@ static inline void generate_pseudo_legal_king_actions(const board& chess_board, 
 {
 	int color = chess_board.side_to_move;
 	uint64_t own = chess_board.occupied[color];
-	uint64_t enemy = chess_board.occupied[!color];
+	uint64_t enemy = chess_board.occupied[color ^ 1];
 	uint64_t occupied = own | enemy;
 
 	int from = chess_board.king_square[color];
@@ -244,7 +246,6 @@ static inline void generate_pseudo_legal_king_actions(const board& chess_board, 
 	while (legal_king_actions)
 	{
 		int to = pop_lsb(legal_king_actions);
-		uint64_t to_mask = 1ull << to;
 
 		uint16_t action = create_action(from, to, QUIET);
 		pseudo_legal_actions.actions[pseudo_legal_actions.count++] = action;
@@ -255,7 +256,8 @@ static inline void generate_pseudo_legal_king_actions(const board& chess_board, 
 		if (!(occupied & ((1ull << 5) | (1ull << 6))))
 		{
 			if (!is_square_attacked(chess_board, 4, BLACK) &&
-				!is_square_attacked(chess_board, 5, BLACK))
+				!is_square_attacked(chess_board, 5, BLACK) &&
+				!is_square_attacked(chess_board, 6, BLACK))
 			{
 				pseudo_legal_actions.actions[pseudo_legal_actions.count++] = create_action(4, 6, CASTLE_WHITE_KINGSIDE);
 			}
@@ -266,7 +268,8 @@ static inline void generate_pseudo_legal_king_actions(const board& chess_board, 
 	{
 		if (!(occupied & ((1ull << 1) | (1ull << 2) | (1ull << 3))))
 		{
-			if (!is_square_attacked(chess_board, 3, BLACK) &&
+			if (!is_square_attacked(chess_board, 2, BLACK) &&
+				!is_square_attacked(chess_board, 3, BLACK) &&
 				!is_square_attacked(chess_board, 4, BLACK))
 			{
 				pseudo_legal_actions.actions[pseudo_legal_actions.count++] = create_action(4, 2, CASTLE_WHITE_QUEENSIDE);
@@ -279,7 +282,8 @@ static inline void generate_pseudo_legal_king_actions(const board& chess_board, 
 		if (!(occupied & ((1ull << 61) | (1ull << 62))))
 		{
 			if (!is_square_attacked(chess_board, 60, WHITE) &&
-				!is_square_attacked(chess_board, 61, WHITE))
+				!is_square_attacked(chess_board, 61, WHITE) &&
+				!is_square_attacked(chess_board, 62, WHITE))
 			{
 				pseudo_legal_actions.actions[pseudo_legal_actions.count++] = create_action(60, 62, CASTLE_BLACK_KINGSIDE);
 			}
@@ -290,13 +294,71 @@ static inline void generate_pseudo_legal_king_actions(const board& chess_board, 
 	{
 		if (!(occupied & ((1ull << 57) | (1ull << 58) | (1ull << 59))))
 		{
-			if (!is_square_attacked(chess_board, 59, WHITE) &&
+			if (!is_square_attacked(chess_board, 58, WHITE) &&
+				!is_square_attacked(chess_board, 59, WHITE) &&
 				!is_square_attacked(chess_board, 60, WHITE))
 			{
 				pseudo_legal_actions.actions[pseudo_legal_actions.count++] = create_action(60, 58, CASTLE_BLACK_QUEENSIDE);
 			}
 		}
 	}
+}
+
+static inline uint64_t compute_pins(const board& chess_board)
+{
+	int color = chess_board.side_to_move;
+	int enemy = color ^ 1;
+	uint64_t occupied = chess_board.occupied[WHITE] | chess_board.occupied[BLACK];
+	uint64_t own = chess_board.occupied[color];
+
+	int king_square = chess_board.king_square[color];
+	uint64_t pinned = 0;
+
+	{
+		uint64_t blockers = occupied & rook_masks[king_square];
+		uint64_t index = (blockers * rook_magics[king_square]) >> rook_shifts[king_square];
+		uint64_t ray = rook_attacks[king_square][index];
+
+		uint64_t candidates = ray & own;
+
+		while (candidates)
+		{
+			int pinned_square = pop_lsb(candidates);
+
+			uint64_t occ2 = occupied ^ (1ull << pinned_square);
+
+			uint64_t blockers2 = occ2 & rook_masks[king_square];
+			uint64_t index2 = (blockers2 * rook_magics[king_square]) >> rook_shifts[king_square];
+			uint64_t ray2 = rook_attacks[king_square][index2];
+
+			if (ray2 & (chess_board.pieces[enemy][ROOK] | chess_board.pieces[enemy][QUEEN]))
+				pinned |= (1ull << pinned_square);
+		}
+	}
+
+	{
+		uint64_t blockers = occupied & bishop_masks[king_square];
+		uint64_t index = (blockers * bishop_magics[king_square]) >> bishop_shifts[king_square];
+		uint64_t ray = bishop_attacks[king_square][index];
+
+		uint64_t candidates = ray & own;
+
+		while (candidates)
+		{
+			int pinned_square = pop_lsb(candidates);
+
+			uint64_t occ2 = occupied ^ (1ull << pinned_square);
+
+			uint64_t blockers2 = occ2 & bishop_masks[king_square];
+			uint64_t index2 = (blockers2 * bishop_magics[king_square]) >> bishop_shifts[king_square];
+			uint64_t ray2 = bishop_attacks[king_square][index2];
+
+			if (ray2 & (chess_board.pieces[enemy][BISHOP] | chess_board.pieces[enemy][QUEEN]))
+				pinned |= (1ull << pinned_square);
+		}
+	}
+
+	return pinned;
 }
 
 action_list generate_legal_actions(const board& chess_board)
@@ -311,20 +373,47 @@ action_list generate_legal_actions(const board& chess_board)
 	generate_pseudo_legal_king_actions(chess_board, legal_actions);
 
 	int color = chess_board.side_to_move;
+	int king_square = chess_board.king_square[color];
+
+	uint64_t pins = compute_pins(chess_board);
+	bool in_check = is_square_attacked(chess_board, king_square, color ^ 1);
 	static board temp;
 
 	for (int i = 0; i < legal_actions.count;)
 	{
 		uint16_t action = legal_actions.actions[i];
+		int from = from_sq(action);
+		int to = to_sq(action);
 
 		temp = chess_board;
 		temp.make_action(action);
 
-		int king_square = temp.king_square[color];
-		if (is_square_attacked(temp, king_square, color ^ 1))
-			legal_actions.actions[i] = legal_actions.actions[--legal_actions.count];
+		if (from == king_square)
+		{
+			if (is_square_attacked(temp, to, color ^ 1))
+				legal_actions.actions[i] = legal_actions.actions[--legal_actions.count];
+			else
+				++i;
+		}
+		else if (in_check || flags(action) == EN_PASSANT)
+		{
+			int king_square_temp = temp.king_square[color];
+			if (is_square_attacked(temp, king_square_temp, color ^ 1))
+				legal_actions.actions[i] = legal_actions.actions[--legal_actions.count];
+			else
+				++i;
+		}
+		else if (pins & (1ull << from))
+		{
+			if (!(aligned_mask[king_square][from] & (1ull << to)))
+				legal_actions.actions[i] = legal_actions.actions[--legal_actions.count];
+			else
+				++i;
+		}
 		else
+		{
 			++i;
+		}
 	}
 
 	return legal_actions;

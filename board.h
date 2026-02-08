@@ -4,7 +4,6 @@
 #include <vector>
 #include <string>
 #include "piece.h"
-#include "action.h"
 
 enum castling_rights : uint8_t
 {
@@ -24,7 +23,9 @@ struct board
 	int king_square[COLOR_NB];
 	int8_t en_passant_square;
 	uint8_t castling_rights;
+
 	int side_to_move;
+	int ply;
 
 	void print(int highlight) const;
 

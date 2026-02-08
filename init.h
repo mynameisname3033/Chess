@@ -3,6 +3,8 @@
 #include <cstdint>
 #include "piece.h"
 
+extern uint64_t aligned_mask[64][64];
+
 static constexpr int dirs[8] = { 9, 7, -7, -9, 8, -8, 1, -1 };
 extern int dist_to_edge[64][8];
 

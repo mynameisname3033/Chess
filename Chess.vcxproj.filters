@@ -66,6 +66,9 @@
     <ClInclude Include="zobrist_hash.h">
       <Filter>Header Files\Bot</Filter>
     </ClInclude>
+    <ClInclude Include="lichess_communicator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -83,9 +86,6 @@
     <ClCompile Include="bot.cpp">
       <Filter>Source Files\Bot</Filter>
     </ClCompile>
-    <ClCompile Include="transposition_table.cpp">
-      <Filter>Source Files\Bot</Filter>
-    </ClCompile>
     <ClCompile Include="zobrist_hash.cpp">
       <Filter>Source Files\Bot</Filter>
     </ClCompile>
@@ -94,6 +94,9 @@
     </ClCompile>
     <ClCompile Include="piece.cpp">
       <Filter>Source Files\Types</Filter>
+    </ClCompile>
+    <ClCompile Include="lichess_communicator.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

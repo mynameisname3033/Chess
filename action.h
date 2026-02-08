@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <string>
 #include "piece.h"
+#include "board.h"
 
 enum action_flags : uint8_t
 {
@@ -29,7 +30,8 @@ inline int from_sq(uint16_t action) { return action & 0x3F; }
 inline int to_sq(uint16_t action) { return (action >> 6) & 0x3F; }
 inline int flags(uint16_t action) { return (action >> 12) & 0xF; }
 
-inline bool is_promo(int flags) { return flags & PROMO_KNIGHT; }
+inline bool is_promo(int flags) { return flags >= PROMO_KNIGHT && flags <= PROMO_QUEEN; }
 inline int promo_piece(int flags) { return flags - PROMO_KNIGHT + KNIGHT; }
 
 std::string action_to_string(uint16_t action, int color);
+uint16_t string_to_action(const board& chess_board, const std::string& action_str);

@@ -251,13 +251,19 @@ uint16_t bot_play(const board& chess_board, action_list& legal_actions, const go
 
 		int scores[218];
 
+		uint16_t killer_action1 = killer_actions[depth][0];
+		uint16_t killer_action2 = killer_actions[depth][1];
+
 		for (int i = 0; i < legal_actions.count; ++i)
 		{
 			uint16_t action = legal_actions.actions[i];
-			scores[i] = evaluate_action(chess_board, action);
 
 			if (action == best_action)
 				scores[i] = INF;
+			else if (action == killer_action1 || action == killer_action2)
+				scores[i] = INF - 1;
+			else
+				scores[i] = evaluate_action(chess_board, action);
 		}
 
 		int limit = min(legal_actions.count, ORDERED_ACTIONS);
@@ -314,7 +320,7 @@ uint16_t bot_play(const board& chess_board, action_list& legal_actions, const go
 
 		if (abs(best_score) > INF - 1000)
 		{
-			int mate_in = (INF - abs(best_score) + 1) / 2;
+			int mate_in = (INF - abs(best_score) + 1) / 2 - 1;
 			if (best_score < 0) mate_in = -mate_in;
 			cout << "info depth " << depth << " score mate " << mate_in << " time " << elapsed.count() << "\n";
 		}

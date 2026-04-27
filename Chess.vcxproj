@@ -102,6 +102,12 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <Optimization>MaxSpeed</Optimization>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <FloatingPointModel>Fast</FloatingPointModel>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <OpenMPSupport>true</OpenMPSupport>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -116,6 +122,13 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <Optimization>MaxSpeed</Optimization>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <FloatingPointModel>Fast</FloatingPointModel>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <OpenMPSupport>true</OpenMPSupport>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -125,23 +138,26 @@
   <ItemGroup>
     <ClInclude Include="action.h" />
     <ClInclude Include="action_generator.h" />
-    <ClInclude Include="action_list.h" />
+    <ClInclude Include="bits.h" />
     <ClInclude Include="board.h" />
     <ClInclude Include="bot.h" />
     <ClInclude Include="init.h" />
-    <ClInclude Include="lichess_communicator.h" />
+    <ClInclude Include="options.h" />
+    <ClInclude Include="uci_communicator.h" />
+    <ClInclude Include="nnue.h" />
+    <ClInclude Include="parameters.h" />
     <ClInclude Include="piece.h" />
     <ClInclude Include="transposition_table.h" />
     <ClInclude Include="zobrist_hash.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="action.cpp" />
-    <ClCompile Include="action_generator.cpp" />
-    <ClCompile Include="board.cpp" />
     <ClCompile Include="bot.cpp" />
     <ClCompile Include="init.cpp" />
-    <ClCompile Include="lichess_communicator.cpp" />
+    <ClCompile Include="options.cpp" />
+    <ClCompile Include="uci_communicator.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="parameters.cpp" />
     <ClCompile Include="piece.cpp" />
     <ClCompile Include="zobrist_hash.cpp" />
   </ItemGroup>

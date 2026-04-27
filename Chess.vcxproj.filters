@@ -37,13 +37,16 @@
     <Filter Include="Source Files\Types">
       <UniqueIdentifier>{6cea5473-baf3-490b-9e8d-e2dbfa520e90}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Bot\NNUE">
+      <UniqueIdentifier>{ce83e4ee-ebc1-4675-a042-c2eadefdacfb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Bot\NNUE">
+      <UniqueIdentifier>{b452417f-d450-424f-a28d-74eb60b6471f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="board.h">
       <Filter>Header Files\Board</Filter>
-    </ClInclude>
-    <ClInclude Include="action_list.h">
-      <Filter>Header Files\Types</Filter>
     </ClInclude>
     <ClInclude Include="action.h">
       <Filter>Header Files\Types</Filter>
@@ -66,19 +69,25 @@
     <ClInclude Include="zobrist_hash.h">
       <Filter>Header Files\Bot</Filter>
     </ClInclude>
-    <ClInclude Include="lichess_communicator.h">
+    <ClInclude Include="uci_communicator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="parameters.h">
+      <Filter>Header Files\Bot\NNUE</Filter>
+    </ClInclude>
+    <ClInclude Include="nnue.h">
+      <Filter>Header Files\Bot\NNUE</Filter>
+    </ClInclude>
+    <ClInclude Include="options.h">
+      <Filter>Header Files\Bot</Filter>
+    </ClInclude>
+    <ClInclude Include="bits.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="board.cpp">
-      <Filter>Source Files\Board</Filter>
-    </ClCompile>
-    <ClCompile Include="action_generator.cpp">
-      <Filter>Source Files\Board\Action Generation</Filter>
     </ClCompile>
     <ClCompile Include="init.cpp">
       <Filter>Source Files\Board\Action Generation</Filter>
@@ -95,8 +104,14 @@
     <ClCompile Include="piece.cpp">
       <Filter>Source Files\Types</Filter>
     </ClCompile>
-    <ClCompile Include="lichess_communicator.cpp">
+    <ClCompile Include="uci_communicator.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="parameters.cpp">
+      <Filter>Source Files\Bot\NNUE</Filter>
+    </ClCompile>
+    <ClCompile Include="options.cpp">
+      <Filter>Source Files\Bot</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

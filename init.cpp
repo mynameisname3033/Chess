@@ -1,12 +1,15 @@
 #include <algorithm>
-#include <iostream>
 #include <random>
+#include <cmath>
+#include <cstdint>
+#include <intrin0.inl.h>
+#include "piece.h"
 #include "init.h"
+#include "bits.h"
 
-using namespace std;
-
-uint64_t aligned_mask[64][64];
 int dist_to_edge[64][8];
+uint64_t aligned_mask[64][64];
+uint64_t squares_between[64][64];
 
 uint64_t pawn_attacks[COLOR_NB][64];
 uint64_t knight_attacks[64];
@@ -23,24 +26,6 @@ uint64_t bishop_magics[64];
 
 int rook_shifts[64];
 int bishop_shifts[64];
-
-static void init_dist_to_edge()
-{
-	for (int square = 0; square < 64; ++square)
-	{
-		int rank = square >> 3;
-		int file = square & 7;
-
-		dist_to_edge[square][0] = min(7 - rank, 7 - file);
-		dist_to_edge[square][1] = min(7 - rank, file);
-		dist_to_edge[square][2] = min(rank, 7 - file);
-		dist_to_edge[square][3] = min(rank, file);
-		dist_to_edge[square][4] = 7 - rank;
-		dist_to_edge[square][5] = rank;
-		dist_to_edge[square][6] = 7 - file;
-		dist_to_edge[square][7] = file;
-	}
-}
 
 static void init_pawn_attacks()
 {
@@ -225,7 +210,7 @@ static inline uint64_t subset_to_bb(int subset, uint64_t mask)
 
 static inline bool test_bishop_magic(uint64_t magic, int square)
 {
-	if (__popcnt64((bishop_masks[square] * magic) & 0xFF00000000000000ULL) < 6)
+	if (__popcnt64((bishop_masks[square] * magic) & 0xFF00000000000000ull) < 6)
 		return false;
 
 	static uint64_t used[512];
@@ -260,7 +245,7 @@ static inline bool test_bishop_magic(uint64_t magic, int square)
 
 static inline bool test_rook_magic(uint64_t magic, int square)
 {
-	if (__popcnt64((rook_masks[square] * magic) & 0xFF00000000000000ULL) < 6)
+	if (__popcnt64((rook_masks[square] * magic) & 0xFF00000000000000ull) < 6)
 		return false;
 
 	static uint64_t used[4096];
@@ -295,7 +280,7 @@ static inline bool test_rook_magic(uint64_t magic, int square)
 
 static void init_magic_numbers()
 {
-	mt19937_64 rng(123456);
+	std::mt19937_64 rng(123456);
 
 	for (int square = 0; square < 64; ++square)
 	{
@@ -318,6 +303,24 @@ static void init_magic_numbers()
 				break;
 			}
 		}
+	}
+}
+
+static void init_dist_to_edge()
+{
+	for (int square = 0; square < 64; ++square)
+	{
+		int rank = square >> 3;
+		int file = square & 7;
+
+		dist_to_edge[square][0] = std::min(7 - rank, 7 - file);
+		dist_to_edge[square][1] = std::min(7 - rank, file);
+		dist_to_edge[square][2] = std::min(rank, 7 - file);
+		dist_to_edge[square][3] = std::min(rank, file);
+		dist_to_edge[square][4] = 7 - rank;
+		dist_to_edge[square][5] = rank;
+		dist_to_edge[square][6] = 7 - file;
+		dist_to_edge[square][7] = file;
 	}
 }
 
@@ -376,10 +379,64 @@ static void init_aligned_mask()
 	}
 }
 
+static void init_squares_between()
+{
+	for (int a = 0; a < 64; a++)
+	{
+		for (int b = 0; b < 64; b++)
+		{
+			squares_between[a][b] = 0;
+
+			if (a == b)
+				continue;
+
+			int file_a = a & 7;
+			int rank_a = a >> 3;
+
+			int file_b = b & 7;
+			int rank_b = b >> 3;
+
+			int df = file_b - file_a;
+			int dr = rank_b - rank_a;
+
+			int step = 0;
+
+			if (df == 0)
+			{
+				step = (dr > 0) ? 8 : -8;
+			}
+			else if (dr == 0)
+			{
+				step = (df > 0) ? 1 : -1;
+			}
+			else if (abs(df) == abs(dr))
+			{
+				if (df > 0 && dr > 0) step = 9;
+				if (df < 0 && dr > 0) step = 7;
+				if (df > 0 && dr < 0) step = -7;
+				if (df < 0 && dr < 0) step = -9;
+			}
+			else
+			{
+				continue;
+			}
+
+			int square = a + step;
+			while (square != b)
+			{
+				squares_between[a][b] |= 1ull << square;
+				square += step;
+			}
+		}
+	}
+}
 
 void init_action_generator()
 {
 	init_dist_to_edge();
+	init_aligned_mask();
+	init_squares_between();
+
 	init_pawn_attacks();
 	init_knight_attacks();
 	init_king_attacks();
@@ -387,6 +444,4 @@ void init_action_generator()
 	compute_rook_masks();
 	compute_bishop_masks();
 	init_magic_numbers();
-	
-	init_aligned_mask();
 }

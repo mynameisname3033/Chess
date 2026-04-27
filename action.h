@@ -3,7 +3,8 @@
 #include <cstdint>
 #include <string>
 #include "piece.h"
-#include "board.h"
+
+struct board;
 
 enum action_flags : uint8_t
 {
@@ -21,6 +22,12 @@ enum action_flags : uint8_t
 	CASTLE_WHITE_QUEENSIDE = 9,
 	CASTLE_BLACK_KINGSIDE = 10,
 	CASTLE_BLACK_QUEENSIDE = 11
+};
+
+struct action_list
+{
+	uint16_t actions[218];
+	int count = 0;
 };
 
 inline uint16_t create_action(int from, int to, int flags) { return from | (to << 6) | (flags << 12); }

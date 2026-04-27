@@ -361,3 +361,8 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/action_generator.cpp
+/action_list.h
+/board.cpp
+/lichess_communicator.cpp
+/lichess_communicator.h

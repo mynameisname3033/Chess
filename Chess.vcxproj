@@ -123,12 +123,14 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <Optimization>MaxSpeed</Optimization>
-      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
       <FloatingPointModel>Fast</FloatingPointModel>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <OpenMPSupport>true</OpenMPSupport>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions512</EnableEnhancedInstructionSet>
+      <AdditionalOptions>/Qvec-report:2 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -140,7 +142,8 @@
     <ClInclude Include="action_generator.h" />
     <ClInclude Include="bits.h" />
     <ClInclude Include="board.h" />
-    <ClInclude Include="bot.h" />
+    <ClInclude Include="action_picker.h" />
+    <ClInclude Include="search.h" />
     <ClInclude Include="init.h" />
     <ClInclude Include="options.h" />
     <ClInclude Include="uci_communicator.h" />
@@ -152,7 +155,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="action.cpp" />
-    <ClCompile Include="bot.cpp" />
+    <ClCompile Include="search.cpp" />
     <ClCompile Include="init.cpp" />
     <ClCompile Include="options.cpp" />
     <ClCompile Include="uci_communicator.cpp" />

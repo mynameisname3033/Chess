@@ -7,7 +7,7 @@
 #include "action.h"
 #include "bits.h"
 
-inline bool is_square_attacked(const board& chess_board, int square, int by_color, int king_from = -1)
+__forceinline bool is_square_attacked(const board& chess_board, int square, int by_color, int king_from = -1)
 {
 	uint64_t occupied = (chess_board.occupied[WHITE] | chess_board.occupied[BLACK]);
 	if (king_from != -1)
@@ -39,7 +39,7 @@ inline bool is_square_attacked(const board& chess_board, int square, int by_colo
 	return false;
 }
 
-inline uint64_t attackers_to(const uint64_t (&pieces)[COLOR_NB][PIECE_NB], int square, uint64_t occupied)
+__forceinline uint64_t attackers_to(const uint64_t(&pieces)[COLOR_NB][PIECE_NB], int square, uint64_t occupied)
 {
 	uint64_t bishops = bishop_attacks[square][((occupied & bishop_masks[square]) * bishop_magics[square]) >> bishop_shifts[square]];
 	uint64_t rooks = rook_attacks[square][((occupied & rook_masks[square]) * rook_magics[square]) >> rook_shifts[square]];
@@ -65,7 +65,59 @@ inline uint64_t attackers_to(const uint64_t (&pieces)[COLOR_NB][PIECE_NB], int s
 	return attackers;
 }
 
-static inline void add_promo_pieces(int from, int to, action_list& actions)
+static __forceinline uint64_t compute_pins(const board& chess_board)
+{
+	int color = chess_board.side_to_move;
+	int enemy = color ^ 1;
+
+	uint64_t own = chess_board.occupied[color];
+	uint64_t occupied = chess_board.occupied[WHITE] | chess_board.occupied[BLACK];
+	uint64_t enemy_rooks = chess_board.pieces[enemy][ROOK] | chess_board.pieces[enemy][QUEEN];
+	uint64_t enemy_bishops = chess_board.pieces[enemy][BISHOP] | chess_board.pieces[enemy][QUEEN];
+
+	uint8_t king_square = chess_board.king_square[color];
+	uint64_t pinned = 0;
+
+	{
+		uint64_t blockers = occupied & rook_masks[king_square];
+		uint64_t index = (blockers * rook_magics[king_square]) >> rook_shifts[king_square];
+		uint64_t ray = rook_attacks[king_square][index];
+		uint64_t candidates = ray & own;
+
+		while (candidates)
+		{
+			int pinned_square = pop_lsb(candidates);
+			uint64_t occ2 = occupied & ~(1ull << pinned_square);
+			uint64_t index2 = ((occ2 & rook_masks[king_square]) * rook_magics[king_square]) >> rook_shifts[king_square];
+			uint64_t ray2 = rook_attacks[king_square][index2];
+
+			if (ray2 & enemy_rooks & aligned_mask[king_square][pinned_square])
+				pinned |= (1ull << pinned_square);
+		}
+	}
+
+	{
+		uint64_t blockers = occupied & bishop_masks[king_square];
+		uint64_t index = (blockers * bishop_magics[king_square]) >> bishop_shifts[king_square];
+		uint64_t ray = bishop_attacks[king_square][index];
+		uint64_t candidates = ray & own;
+
+		while (candidates)
+		{
+			int pinned_square = pop_lsb(candidates);
+			uint64_t occ2 = occupied & ~(1ull << pinned_square);
+			uint64_t index2 = ((occ2 & bishop_masks[king_square]) * bishop_magics[king_square]) >> bishop_shifts[king_square];
+			uint64_t ray2 = bishop_attacks[king_square][index2];
+
+			if (ray2 & enemy_bishops & aligned_mask[king_square][pinned_square])
+				pinned |= (1ull << pinned_square);
+		}
+	}
+
+	return pinned;
+}
+
+static __forceinline void add_promo_pieces(int from, int to, action_list& actions)
 {
 	for (int promo_piece = PROMO_KNIGHT; promo_piece <= PROMO_QUEEN; ++promo_piece)
 	{
@@ -73,7 +125,7 @@ static inline void add_promo_pieces(int from, int to, action_list& actions)
 	}
 }
 
-static inline void generate_pawn_actions(const board& chess_board, action_list& actions, uint64_t pinned, uint64_t check_mask)
+static __forceinline void generate_pawn_actions(const board& chess_board, action_list& actions, uint64_t pinned, uint64_t check_mask)
 {
 	bool color = chess_board.side_to_move;
 	uint64_t pawns = chess_board.pieces[color][PAWN];
@@ -175,7 +227,7 @@ static inline void generate_pawn_actions(const board& chess_board, action_list& 
 	}
 }
 
-static inline void generate_knight_actions(const board& chess_board, action_list& actions, uint64_t pinned, uint64_t check_mask)
+static __forceinline void generate_knight_actions(const board& chess_board, action_list& actions, uint64_t pinned, uint64_t check_mask)
 {
 	int color = chess_board.side_to_move;
 	uint64_t own = chess_board.occupied[color];
@@ -198,7 +250,7 @@ static inline void generate_knight_actions(const board& chess_board, action_list
 	}
 }
 
-static inline void generate_bishop_actions(const board& chess_board, action_list& actions, uint64_t pinned, uint64_t check_mask)
+static __forceinline void generate_bishop_actions(const board& chess_board, action_list& actions, uint64_t pinned, uint64_t check_mask)
 {
 	int color = chess_board.side_to_move;
 	uint64_t own = chess_board.occupied[color];
@@ -227,7 +279,7 @@ static inline void generate_bishop_actions(const board& chess_board, action_list
 	}
 }
 
-static inline void generate_rook_actions(const board& chess_board, action_list& actions, uint64_t pinned, uint64_t check_mask)
+static __forceinline void generate_rook_actions(const board& chess_board, action_list& actions, uint64_t pinned, uint64_t check_mask)
 {
 	int color = chess_board.side_to_move;
 	uint64_t own = chess_board.occupied[color];
@@ -256,7 +308,7 @@ static inline void generate_rook_actions(const board& chess_board, action_list& 
 	}
 }
 
-static inline void generate_queen_actions(const board& chess_board, action_list& actions, uint64_t pinned, uint64_t check_mask)
+static __forceinline void generate_queen_actions(const board& chess_board, action_list& actions, uint64_t pinned, uint64_t check_mask)
 {
 	int color = chess_board.side_to_move;
 	uint64_t own = chess_board.occupied[color];
@@ -289,7 +341,7 @@ static inline void generate_queen_actions(const board& chess_board, action_list&
 	}
 }
 
-static inline void generate_king_actions(const board& chess_board, action_list& actions)
+static __forceinline void generate_king_actions(const board& chess_board, action_list& actions)
 {
 	int color = chess_board.side_to_move;
 	uint64_t own = chess_board.occupied[color];
@@ -362,59 +414,7 @@ static inline void generate_king_actions(const board& chess_board, action_list& 
 	}
 }
 
-static inline uint64_t compute_pins(const board& chess_board)
-{
-	int color = chess_board.side_to_move;
-	int enemy = color ^ 1;
-
-	uint64_t own = chess_board.occupied[color];
-	uint64_t occupied = chess_board.occupied[WHITE] | chess_board.occupied[BLACK];
-	uint64_t enemy_rooks = chess_board.pieces[enemy][ROOK] | chess_board.pieces[enemy][QUEEN];
-	uint64_t enemy_bishops = chess_board.pieces[enemy][BISHOP] | chess_board.pieces[enemy][QUEEN];
-
-	uint8_t king_square = chess_board.king_square[color];
-	uint64_t pinned = 0;
-
-	{
-		uint64_t blockers = occupied & rook_masks[king_square];
-		uint64_t index = (blockers * rook_magics[king_square]) >> rook_shifts[king_square];
-		uint64_t ray = rook_attacks[king_square][index];
-		uint64_t candidates = ray & own;
-
-		while (candidates)
-		{
-			int pinned_square = pop_lsb(candidates);
-			uint64_t occ2 = occupied & ~(1ull << pinned_square);
-			uint64_t index2 = ((occ2 & rook_masks[king_square]) * rook_magics[king_square]) >> rook_shifts[king_square];
-			uint64_t ray2 = rook_attacks[king_square][index2];
-
-			if (ray2 & enemy_rooks & aligned_mask[king_square][pinned_square])
-				pinned |= (1ull << pinned_square);
-		}
-	}
-
-	{
-		uint64_t blockers = occupied & bishop_masks[king_square];
-		uint64_t index = (blockers * bishop_magics[king_square]) >> bishop_shifts[king_square];
-		uint64_t ray = bishop_attacks[king_square][index];
-		uint64_t candidates = ray & own;
-
-		while (candidates)
-		{
-			int pinned_square = pop_lsb(candidates);
-			uint64_t occ2 = occupied & ~(1ull << pinned_square);
-			uint64_t index2 = ((occ2 & bishop_masks[king_square]) * bishop_magics[king_square]) >> bishop_shifts[king_square];
-			uint64_t ray2 = bishop_attacks[king_square][index2];
-
-			if (ray2 & enemy_bishops & aligned_mask[king_square][pinned_square])
-				pinned |= (1ull << pinned_square);
-		}
-	}
-
-	return pinned;
-}
-
-inline action_list generate_legal_actions(const board& chess_board)
+__forceinline action_list generate_legal_actions(const board& chess_board)
 {
 	action_list actions;
 
@@ -455,14 +455,18 @@ inline action_list generate_legal_actions(const board& chess_board)
 	return actions;
 }
 
-static inline void generate_only_tactical_pawn_actions(const board& chess_board, action_list& actions, uint64_t pinned, uint64_t check_mask)
+static __forceinline void generate_only_tactical_pawn_actions(const board& chess_board, action_list& actions, uint64_t pinned, bool allow_checks)
 {
 	bool color = chess_board.side_to_move;
 	uint64_t pawns = chess_board.pieces[color][PAWN];
 	uint64_t empty = ~(chess_board.occupied[WHITE] | chess_board.occupied[BLACK]);
 	uint64_t enemy = chess_board.occupied[color ^ 1];
+	int enemy_king_sq = chess_board.king_square[color ^ 1];
 
-	uint64_t single_push = color == WHITE ? (pawns << 8) & empty & check_mask : (pawns >> 8) & empty & check_mask;
+	uint64_t promo_rank = color == WHITE ? 0xFF00000000000000ull : 0x00000000000000FFull;
+	uint64_t single_push = color == WHITE ? (pawns << 8) & empty : (pawns >> 8) & empty;
+	if (!allow_checks)
+		single_push &= promo_rank;
 
 	while (single_push)
 	{
@@ -473,11 +477,40 @@ static inline void generate_only_tactical_pawn_actions(const board& chess_board,
 			continue;
 
 		if ((to >= 56 && color == WHITE) || (to <= 7 && color == BLACK))
+		{
 			add_promo_pieces(from, to, actions);
+		}
+		else if (allow_checks)
+		{
+			if ((1ull << to) & pawn_attacks[color ^ 1][enemy_king_sq])
+			{
+				actions.actions[actions.count++] = create_action(from, to, QUIET);
+			}
+		}
 	}
 
-	uint64_t left_capture = color == WHITE ? ((pawns & ~0x0101010101010101ull) << 7) & enemy & check_mask : ((pawns & ~0x8080808080808080ull) >> 7) & enemy & check_mask;
-	uint64_t right_capture = color == WHITE ? ((pawns & ~0x8080808080808080ull) << 9) & enemy & check_mask : ((pawns & ~0x0101010101010101ull) >> 9) & enemy & check_mask;
+	if (allow_checks)
+	{
+		uint64_t start_rank = color == WHITE ? 0x000000000000FF00ull : 0x00FF000000000000ull;
+		uint64_t double_push = color == WHITE ? ((pawns & start_rank) << 16) & empty & (empty << 8) : ((pawns & start_rank) >> 16) & empty & (empty >> 8);
+
+		while (double_push)
+		{
+			int to = pop_lsb(double_push);
+			int from = color == WHITE ? to - 16 : to + 16;
+
+			if (((1ull << from) & pinned) && !(aligned_mask[from][chess_board.king_square[color]] & (1ull << to)))
+				continue;
+
+			if ((1ull << to) & pawn_attacks[color ^ 1][enemy_king_sq])
+			{
+				actions.actions[actions.count++] = create_action(from, to, DOUBLE_PAWN);
+			}
+		}
+	}
+
+	uint64_t left_capture = color == WHITE ? ((pawns & ~0x0101010101010101ull) << 7) & enemy : ((pawns & ~0x8080808080808080ull) >> 7) & enemy;
+	uint64_t right_capture = color == WHITE ? ((pawns & ~0x8080808080808080ull) << 9) & enemy : ((pawns & ~0x0101010101010101ull) >> 9) & enemy;
 
 	while (left_capture)
 	{
@@ -518,7 +551,7 @@ static inline void generate_only_tactical_pawn_actions(const board& chess_board,
 
 	board temp;
 
-	if (left_ep && ((1ull << en_passant_square) & check_mask || captured_pawn_sq & check_mask))
+	if (left_ep && ((1ull << en_passant_square) || captured_pawn_sq))
 	{
 		int from = color == WHITE ? en_passant_square - 7 : en_passant_square + 7;
 
@@ -529,7 +562,7 @@ static inline void generate_only_tactical_pawn_actions(const board& chess_board,
 			actions.actions[actions.count++] = create_action(from, en_passant_square, EN_PASSANT);
 	}
 
-	if (right_ep && ((1ull << en_passant_square) & check_mask || captured_pawn_sq & check_mask))
+	if (right_ep && ((1ull << en_passant_square) || captured_pawn_sq))
 	{
 		int from = color == WHITE ? en_passant_square - 9 : en_passant_square + 9;
 
@@ -541,10 +574,12 @@ static inline void generate_only_tactical_pawn_actions(const board& chess_board,
 	}
 }
 
-static inline void generate_only_tactical_knight_actions(const board& chess_board, action_list& actions, uint64_t pinned, uint64_t check_mask)
+static __forceinline void generate_only_tactical_knight_actions(const board& chess_board, action_list& actions, uint64_t pinned, bool allow_checks)
 {
 	int color = chess_board.side_to_move;
+	uint64_t own = chess_board.occupied[color];
 	uint64_t enemy = chess_board.occupied[color ^ 1];
+	int enemy_king_sq = chess_board.king_square[color ^ 1];
 
 	uint64_t knights = chess_board.pieces[color][KNIGHT] & ~pinned;
 
@@ -552,24 +587,35 @@ static inline void generate_only_tactical_knight_actions(const board& chess_boar
 	{
 		int from = pop_lsb(knights);
 
-		uint64_t legal_knight_actions = knight_attacks[from] & enemy & check_mask;
+		uint64_t legal_knight_actions = knight_attacks[from] & (allow_checks ? ~own : enemy);
 
 		while (legal_knight_actions)
 		{
 			int to = pop_lsb(legal_knight_actions);
-
 			uint16_t action = create_action(from, to, QUIET);
-			actions.actions[actions.count++] = action;
+
+			if (!allow_checks || (1ull << to) & enemy)
+			{
+				actions.actions[actions.count++] = action;
+			}
+			else
+			{
+				if (knight_attacks[to] & (1ull << enemy_king_sq))
+				{
+					actions.actions[actions.count++] = action;
+				}
+			}
 		}
 	}
 }
 
-static inline void generate_only_tactical_bishop_actions(const board& chess_board, action_list& actions, uint64_t pinned, uint64_t check_mask)
+static __forceinline void generate_only_tactical_bishop_actions(const board& chess_board, action_list& actions, uint64_t pinned, bool allow_checks)
 {
 	int color = chess_board.side_to_move;
 	uint64_t own = chess_board.occupied[color];
 	uint64_t enemy = chess_board.occupied[color ^ 1];
 	uint64_t occupied = own | enemy;
+	int enemy_king_sq = chess_board.king_square[color ^ 1];
 
 	uint64_t bishops = chess_board.pieces[color][BISHOP];
 
@@ -579,26 +625,40 @@ static inline void generate_only_tactical_bishop_actions(const board& chess_boar
 		uint64_t blockers = occupied & bishop_masks[from];
 		int index = (blockers * bishop_magics[from]) >> bishop_shifts[from];
 
-		uint64_t legal_bishop_actions = bishop_attacks[from][index] & enemy & check_mask;
+		uint64_t legal_bishop_actions = bishop_attacks[from][index] & (allow_checks ? ~own : enemy);
 		if ((1ull << from) & pinned)
 			legal_bishop_actions &= aligned_mask[from][chess_board.king_square[color]];
 
 		while (legal_bishop_actions)
 		{
 			int to = pop_lsb(legal_bishop_actions);
-
 			uint16_t action = create_action(from, to, QUIET);
-			actions.actions[actions.count++] = action;
+
+			if (!allow_checks || (1ull << to) & enemy)
+			{
+				actions.actions[actions.count++] = action;
+			}
+			else
+			{
+				uint64_t occupied_after = (occupied & ~(1ull << from)) | (1ull << to);
+				uint64_t bishop_blockers = occupied_after & bishop_masks[enemy_king_sq];
+				int bishop_index = (bishop_blockers * bishop_magics[enemy_king_sq]) >> bishop_shifts[enemy_king_sq];
+				if (bishop_attacks[enemy_king_sq][bishop_index] & (1ull << to))
+				{
+					actions.actions[actions.count++] = action;
+				}
+			}
 		}
 	}
 }
 
-static inline void generate_only_tactical_rook_actions(const board& chess_board, action_list& actions, uint64_t pinned, uint64_t check_mask)
+static __forceinline void generate_only_tactical_rook_actions(const board& chess_board, action_list& actions, uint64_t pinned, bool allow_checks)
 {
 	int color = chess_board.side_to_move;
 	uint64_t own = chess_board.occupied[color];
 	uint64_t enemy = chess_board.occupied[color ^ 1];
 	uint64_t occupied = own | enemy;
+	int enemy_king_sq = chess_board.king_square[color ^ 1];
 
 	uint64_t rooks = chess_board.pieces[color][ROOK];
 
@@ -608,26 +668,40 @@ static inline void generate_only_tactical_rook_actions(const board& chess_board,
 		uint64_t blockers = occupied & rook_masks[from];
 		int index = (blockers * rook_magics[from]) >> rook_shifts[from];
 
-		uint64_t legal_rook_actions = rook_attacks[from][index] & enemy & check_mask;
+		uint64_t legal_rook_actions = rook_attacks[from][index] & (allow_checks ? ~own : enemy);
 		if ((1ull << from) & pinned)
 			legal_rook_actions &= aligned_mask[from][chess_board.king_square[color]];
 
 		while (legal_rook_actions)
 		{
 			int to = pop_lsb(legal_rook_actions);
-
 			uint16_t action = create_action(from, to, QUIET);
-			actions.actions[actions.count++] = action;
+
+			if (!allow_checks || (1ull << to) & enemy)
+			{
+				actions.actions[actions.count++] = action;
+			}
+			else
+			{
+				uint64_t occupied_after = (occupied & ~(1ull << from)) | (1ull << to);
+				uint64_t rook_blockers = occupied_after & rook_masks[enemy_king_sq];
+				int rook_index = (rook_blockers * rook_magics[enemy_king_sq]) >> rook_shifts[enemy_king_sq];
+				if (rook_attacks[enemy_king_sq][rook_index] & (1ull << to))
+				{
+					actions.actions[actions.count++] = action;
+				}
+			}
 		}
 	}
 }
 
-static inline void generate_only_tactical_queen_actions(const board& chess_board, action_list& actions, uint64_t pinned, uint64_t check_mask)
+static __forceinline void generate_only_tactical_queen_actions(const board& chess_board, action_list& actions, uint64_t pinned, bool allow_checks)
 {
 	int color = chess_board.side_to_move;
 	uint64_t own = chess_board.occupied[color];
 	uint64_t enemy = chess_board.occupied[color ^ 1];
 	uint64_t occupied = own | enemy;
+	int enemy_king_sq = chess_board.king_square[color ^ 1];
 
 	uint64_t queens = chess_board.pieces[color][QUEEN];
 
@@ -641,27 +715,46 @@ static inline void generate_only_tactical_queen_actions(const board& chess_board
 		int rook_index = (rook_blockers * rook_magics[from]) >> rook_shifts[from];
 		int bishop_index = (bishop_blockers * bishop_magics[from]) >> bishop_shifts[from];
 
-		uint64_t legal_queen_actions = (rook_attacks[from][rook_index] | bishop_attacks[from][bishop_index]) & enemy & check_mask;
+		uint64_t legal_queen_actions = (rook_attacks[from][rook_index] | bishop_attacks[from][bishop_index]) & (allow_checks ? ~own : enemy);
 		if ((1ull << from) & pinned)
 			legal_queen_actions &= aligned_mask[from][chess_board.king_square[color]];
 
 		while (legal_queen_actions)
 		{
 			int to = pop_lsb(legal_queen_actions);
-
 			uint16_t action = create_action(from, to, QUIET);
-			actions.actions[actions.count++] = action;
+
+			if (!allow_checks || (1ull << to) & enemy)
+			{
+				actions.actions[actions.count++] = action;
+			}
+			else
+			{
+				uint64_t occupied_after = (occupied & ~(1ull << from)) | (1ull << to);
+
+				uint64_t q_rook_blockers = occupied_after & rook_masks[enemy_king_sq];
+				int q_rook_index = (q_rook_blockers * rook_magics[enemy_king_sq]) >> rook_shifts[enemy_king_sq];
+
+				uint64_t q_bishop_blockers = occupied_after & bishop_masks[enemy_king_sq];
+				int q_bishop_index = (q_bishop_blockers * bishop_magics[enemy_king_sq]) >> bishop_shifts[enemy_king_sq];
+
+				if ((rook_attacks[enemy_king_sq][q_rook_index] | bishop_attacks[enemy_king_sq][q_bishop_index]) & (1ull << to))
+				{
+					actions.actions[actions.count++] = action;
+				}
+			}
 		}
 	}
 }
 
-static inline void generate_only_tactical_king_actions(const board& chess_board, action_list& actions)
+static __forceinline void generate_only_tactical_king_actions(const board& chess_board, action_list& actions, bool allow_checks)
 {
 	int color = chess_board.side_to_move;
+	uint64_t own = chess_board.occupied[color];
 	uint64_t enemy = chess_board.occupied[color ^ 1];
 
 	int from = chess_board.king_square[color];
-	uint64_t legal_king_actions = king_attacks[from] & enemy;
+	uint64_t legal_king_actions = king_attacks[from] & (allow_checks ? ~own : enemy);
 
 	while (legal_king_actions)
 	{
@@ -670,47 +763,29 @@ static inline void generate_only_tactical_king_actions(const board& chess_board,
 		if (is_square_attacked(chess_board, to, color ^ 1, from))
 			continue;
 
-		uint16_t action = create_action(from, to, QUIET);
-		actions.actions[actions.count++] = action;
+		if (!allow_checks || (1ull << to) & enemy)
+		{
+			actions.actions[actions.count++] = create_action(from, to, QUIET);
+		}
 	}
 }
 
-inline action_list generate_only_tactical_legal_actions(const board& chess_board)
+__forceinline action_list generate_only_tactical_legal_actions(const board& chess_board, bool allow_checks)
 {
 	action_list actions;
 
 	int color = chess_board.side_to_move;
-	uint64_t occupied = chess_board.occupied[WHITE] | chess_board.occupied[BLACK];
 
-	uint8_t king_sq = chess_board.king_square[color];
-
-	uint64_t checkers = attackers_to(chess_board.pieces, king_sq, occupied) & chess_board.occupied[color ^ 1];
 	uint64_t pinned = compute_pins(chess_board);
-	uint64_t check_mask = ~0;
+	uint64_t check_mask = ~0ull;
 
-	if (checkers)
-	{
-		if (checkers & (checkers - 1))
-		{
-			check_mask = 0;
-		}
-		else
-		{
-			int square = lsb(checkers);
-			check_mask = squares_between[king_sq][square] | (1ull << square);
-		}
-	}
+	generate_only_tactical_king_actions(chess_board, actions, allow_checks);
 
-	generate_only_tactical_king_actions(chess_board, actions);
-
-	if (checkers && (checkers & (checkers - 1)))
-		return actions;
-
-	generate_only_tactical_pawn_actions(chess_board, actions, pinned, check_mask);
-	generate_only_tactical_knight_actions(chess_board, actions, pinned, check_mask);
-	generate_only_tactical_bishop_actions(chess_board, actions, pinned, check_mask);
-	generate_only_tactical_rook_actions(chess_board, actions, pinned, check_mask);
-	generate_only_tactical_queen_actions(chess_board, actions, pinned, check_mask);
+	generate_only_tactical_pawn_actions(chess_board, actions, pinned, allow_checks);
+	generate_only_tactical_knight_actions(chess_board, actions, pinned, allow_checks);
+	generate_only_tactical_bishop_actions(chess_board, actions, pinned, allow_checks);
+	generate_only_tactical_rook_actions(chess_board, actions, pinned, allow_checks);
+	generate_only_tactical_queen_actions(chess_board, actions, pinned, allow_checks);
 
 	return actions;
 }

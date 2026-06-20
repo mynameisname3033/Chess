@@ -5,6 +5,7 @@
 #include <string>
 #include <cctype>
 #include <sstream>
+#include <intrin0.inl.h>
 #include "piece.h"
 #include "action.h"
 #include "zobrist_hash.h"
@@ -24,14 +25,17 @@ struct board
 	uint8_t squares[64];
 	uint64_t hash;
 
+	uint64_t repetition_stack[128];
+	int repetition_idx;
+	int halfmove_clock;
+
 	uint8_t king_square[COLOR_NB];
 	int8_t en_passant_square;
 	uint8_t castling_rights;
 
 	int side_to_move;
-	int halfmove_clock;
 
-	inline void print(int highlight = -1) const
+	__forceinline void print(int highlight = -1) const
 	{
 		int rankStart = side_to_move == WHITE ? 7 : 0;
 		int rankEnd = side_to_move == WHITE ? -1 : 8;
@@ -84,7 +88,7 @@ struct board
 		std::cout << std::endl;
 	}
 
-	inline bool load_fen(const std::string& fen)
+	__forceinline bool load_fen(const std::string& fen)
 	{
 		for (int color = 0; color < COLOR_NB; ++color)
 		{
@@ -102,6 +106,16 @@ struct board
 		std::istringstream iss(fen);
 		std::string placement, side, castling, ep;
 		iss >> placement >> side >> castling >> ep;
+
+		int fen_halfmove = 0;
+		if (iss >> fen_halfmove)
+		{
+			halfmove_clock = fen_halfmove;
+		}
+		else
+		{
+			halfmove_clock = 0;
+		}
 
 		int square = 56;
 
@@ -168,10 +182,13 @@ struct board
 
 		hash = zobrist_hash(*this);
 
+		repetition_idx = 0;
+		repetition_stack[repetition_idx++] = hash;
+
 		return true;
 	}
 
-	inline std::string get_fen() const
+	__forceinline std::string get_fen() const
 	{
 		std::string fen;
 
@@ -245,18 +262,21 @@ struct board
 			fen += static_cast<char>('1' + rank);
 		}
 
+		fen += ' ';
+		fen += std::to_string(halfmove_clock);
+		fen += " 1";
+
 		return fen;
 	}
 
-	inline void make_action(uint16_t action)
+	__forceinline void make_action(uint16_t action)
 	{
-		int to = to_sq(action);
-
 		hash ^= zobrist_side;
 		if (en_passant_square != -1)
 			hash ^= zobrist_ep[en_passant_square & 7];
 
 		int from = from_sq(action);
+		int to = to_sq(action);
 		int action_flags = flags(action);
 
 		int piece = full_piece_piece(squares[from]);
@@ -302,6 +322,16 @@ struct board
 			}
 		}
 
+		if ((piece == PAWN) || (full_captured_piece != 0xFF) || (action_flags == EN_PASSANT))
+		{
+			halfmove_clock = 0;
+			repetition_idx = 0;
+		}
+		else
+		{
+			halfmove_clock++;
+		}
+
 		en_passant_square = -1;
 
 		if (piece == PAWN)
@@ -320,6 +350,9 @@ struct board
 				hash ^= zobrist_piece[color][promo][to];
 
 				side_to_move ^= 1;
+
+				if (repetition_idx < 128)
+					repetition_stack[repetition_idx++] = hash;
 
 				return;
 			}
@@ -419,6 +452,9 @@ struct board
 
 			side_to_move ^= 1;
 
+			if (repetition_idx < 128)
+				repetition_stack[repetition_idx++] = hash;
+
 			return;
 		}
 		else if (piece == ROOK)
@@ -441,9 +477,12 @@ struct board
 		squares[from] = 0xFF;
 
 		side_to_move ^= 1;
+
+		if (repetition_idx < 128)
+			repetition_stack[repetition_idx++] = hash;
 	}
 
-	inline void make_null_action()
+	__forceinline void make_null_action()
 	{
 		hash ^= zobrist_side;
 
@@ -452,5 +491,59 @@ struct board
 
 		en_passant_square = -1;
 		side_to_move ^= 1;
+
+		++halfmove_clock;
+		if (repetition_idx < 128)
+			repetition_stack[repetition_idx++] = hash;
+	}
+
+	__forceinline bool is_draw() const
+	{
+		if (halfmove_clock >= 100)
+			return true;
+
+		int start = repetition_idx - 3;
+		for (int i = start; i >= 0; i -= 2)
+		{
+			if (repetition_stack[i] == hash)
+			{
+				return true;
+			}
+		}
+
+		if (pieces[WHITE][PAWN] || pieces[BLACK][PAWN] ||
+			pieces[WHITE][ROOK] || pieces[BLACK][ROOK] ||
+			pieces[WHITE][QUEEN] || pieces[BLACK][QUEEN])
+		{
+			return false;
+		}
+
+		int white_knights = __popcnt64(pieces[WHITE][KNIGHT]);
+		int black_knights = __popcnt64(pieces[BLACK][KNIGHT]);
+		int white_bishops = __popcnt64(pieces[WHITE][BISHOP]);
+		int black_bishops = __popcnt64(pieces[BLACK][BISHOP]);
+
+		int total_minors = white_knights + black_knights + white_bishops + black_bishops;
+
+		if (total_minors <= 1)
+		{
+			return true;
+		}
+
+		if (total_minors == 2 && white_bishops == 1 && black_bishops == 1)
+		{
+			int white_bishop_square = _tzcnt_u64(pieces[WHITE][BISHOP]);
+			int black_bishop_square = _tzcnt_u64(pieces[BLACK][BISHOP]);
+
+			int white_bishop_color = ((white_bishop_square >> 3) + (white_bishop_square & 7)) % 2;
+			int black_bishop_color = ((black_bishop_square >> 3) + (black_bishop_square & 7)) % 2;
+
+			if (white_bishop_color == black_bishop_color)
+			{
+				return true;
+			}
+		}
+
+		return false;
 	}
 };

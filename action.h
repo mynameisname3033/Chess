@@ -30,15 +30,15 @@ struct action_list
 	int count = 0;
 };
 
-inline uint16_t create_action(int from, int to, int flags) { return from | (to << 6) | (flags << 12); }
-inline void set_action_flags(uint16_t& action, int flags) { action = (action & 0x0FFF) | (flags << 12); }
+__forceinline uint16_t create_action(int from, int to, int flags) { return from | (to << 6) | (flags << 12); }
+__forceinline void set_action_flags(uint16_t& action, int flags) { action = (action & 0x0FFF) | (flags << 12); }
 
-inline int from_sq(uint16_t action) { return action & 0x3F; }
-inline int to_sq(uint16_t action) { return (action >> 6) & 0x3F; }
-inline int flags(uint16_t action) { return (action >> 12) & 0xF; }
+__forceinline int from_sq(uint16_t action) { return action & 0x3F; }
+__forceinline int to_sq(uint16_t action) { return (action >> 6) & 0x3F; }
+__forceinline int flags(uint16_t action) { return (action >> 12) & 0xF; }
 
-inline bool is_promo(int flags) { return flags >= PROMO_KNIGHT && flags <= PROMO_QUEEN; }
-inline int promo_piece(int flags) { return flags - PROMO_KNIGHT + KNIGHT; }
+__forceinline bool is_promo(int flags) { return flags >= PROMO_KNIGHT && flags <= PROMO_QUEEN; }
+__forceinline int promo_piece(int flags) { return flags - PROMO_KNIGHT + KNIGHT; }
 
 std::string action_to_string(uint16_t action, int color);
 uint16_t string_to_action(const board& chess_board, const std::string& action_str);

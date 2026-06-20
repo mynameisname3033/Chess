@@ -1,32 +1,52 @@
 #pragma once
 
 #include <cstdint>
+#include <cstring>
+#include <xmmintrin.h>
+#include "options.h"
+
+static inline constexpr int SIZE = 2 << 24;
+static inline constexpr int CLUSTER_SIZE = 4;
 
 enum TTFlag : uint8_t { EXACT, LOWERBOUND, UPPERBOUND };
 
-struct TTEntry
+struct alignas(16) TTEntry
 {
 	uint64_t key;
 	uint16_t best_action;
-	int score = 0;
-	int static_eval = 0;
-	uint8_t depth_remaining = 0;
-	uint8_t flag = EXACT;
+	int16_t score;
+	int16_t static_eval;
+	uint8_t depth_remaining;
+	uint8_t flag : 2;
+	bool is_quiescence : 1;
+};
+
+struct alignas(64) TTCluster
+{
+	TTEntry entries[CLUSTER_SIZE];
 };
 
 struct transposition_table
 {
 	private:
-		TTEntry* table;
+		TTCluster* table;
 		uint64_t mask;
 
-	public:
 		uint64_t used = 0;
+		uint64_t total_slots = 0;
 
-		transposition_table(int size)
+	public:
+		transposition_table()
 		{
-			table = new TTEntry[size];
-			mask = size - 1;
+			uint64_t cluster_count = 1;
+			while ((cluster_count * CLUSTER_SIZE) < SIZE)
+			{
+				cluster_count <<= 1;
+			}
+
+			total_slots = cluster_count * CLUSTER_SIZE;
+			table = new TTCluster[cluster_count];
+			mask = cluster_count - 1;
 			clear();
 		}
 
@@ -35,40 +55,101 @@ struct transposition_table
 			delete[] table;
 		}
 
-		inline void prefetch(uint64_t key) const
+		__forceinline void prefetch(uint64_t key) const
 		{
 			_mm_prefetch((const char*)&table[key & mask], _MM_HINT_T0);
 		}
 
-		inline TTEntry* probe(uint64_t key)
+		__forceinline TTEntry* probe(uint64_t key)
 		{
-			TTEntry& e = table[key & mask];
-			if (e.key == key)
-				return &e;
+			TTCluster& cluster = table[key & mask];
+			for (int i = 0; i < CLUSTER_SIZE; ++i)
+			{
+				if (cluster.entries[i].key == key)
+					return &cluster.entries[i];
+			}
 			return nullptr;
 		}
 
-		inline void add(uint64_t key, uint16_t best_action, int score, int static_eval, uint8_t depth_remaining, uint8_t flag)
+		__forceinline void add(uint64_t key, uint16_t best_action, int16_t score, int16_t static_eval, uint8_t depth_remaining, uint8_t flag, bool is_quiescence)
 		{
-			TTEntry& e = table[key & mask];
+			TTCluster& cluster = table[key & mask];
+			int target_index = -1;
 
-			if (e.key != key || depth_remaining > e.depth_remaining || (depth_remaining == e.depth_remaining && flag == EXACT))
+			for (int i = 0; i < CLUSTER_SIZE; ++i)
 			{
-				if (e.key == 0)
-					++used;
-
-				e.key = key;
-				e.best_action = best_action;
-				e.score = score;
-				e.static_eval = static_eval;
-				e.depth_remaining = depth_remaining;
-				e.flag = flag;
+				if (cluster.entries[i].key == key)
+				{
+					target_index = i;
+					break;
+				}
 			}
+
+			if (target_index != -1)
+			{
+				TTEntry& e = cluster.entries[target_index];
+				if (depth_remaining > e.depth_remaining || (e.is_quiescence && !is_quiescence) || (depth_remaining == e.depth_remaining && flag == EXACT))
+				{
+					if (best_action != 0)
+						e.best_action = best_action;
+
+					e.score = score;
+					e.depth_remaining = depth_remaining;
+					e.flag = flag & 0x03;
+					e.is_quiescence = is_quiescence;
+				}
+				if (static_eval != -INF)
+				{
+					e.static_eval = static_eval;
+				}
+
+				return;
+			}
+
+			for (int i = 0; i < CLUSTER_SIZE; ++i)
+			{
+				if (cluster.entries[i].key == 0)
+				{
+					target_index = i;
+					++used;
+					break;
+				}
+			}
+
+			if (target_index == -1)
+			{
+				target_index = 0;
+				int min_depth = cluster.entries[0].is_quiescence ? -1 : cluster.entries[0].depth_remaining;
+
+				for (int i = 1; i < CLUSTER_SIZE; ++i)
+				{
+					int current_depth = cluster.entries[i].is_quiescence ? -1 : cluster.entries[i].depth_remaining;
+					if (current_depth < min_depth)
+					{
+						min_depth = current_depth;
+						target_index = i;
+					}
+				}
+			}
+
+			TTEntry& e = cluster.entries[target_index];
+			e.key = key;
+			e.best_action = best_action;
+			e.score = score;
+			e.static_eval = static_eval;
+			e.depth_remaining = depth_remaining;
+			e.flag = flag & 0x03;
+			e.is_quiescence = is_quiescence;
 		}
 
-		inline void clear()
+		__forceinline int hashfull() const
 		{
-			memset(table, 0, sizeof(TTEntry) * (mask + 1));
+			return (1000 * used) / total_slots;
+		}
+
+		__forceinline void clear()
+		{
+			std::memset(table, 0, sizeof(TTCluster) * (mask + 1));
 			used = 0;
 		}
-};
+	};

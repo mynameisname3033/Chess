@@ -5,18 +5,21 @@
 #include <cstdlib>
 #include <iostream>
 #include <ostream>
+#include <cmath>
 #include "parameters.h"
 #include "bits.h"
 #include "action.h"
 #include "board.h"
 #include "piece.h"
 
+static inline constexpr int CASTLING_BASE = EMBEDDINGS - 4;
+
 struct NNUE
 {
 	private:
 		alignas(32) float accumulator[COLOR_NB][INPUT];
 
-		static inline float hsum_ps_avx(__m256 v)
+		static __forceinline float hsum_ps_avx(__m256 v)
 		{
 			__m128 lo = _mm256_castps256_ps128(v);
 			__m128 hi = _mm256_extractf128_ps(v, 1);
@@ -26,27 +29,55 @@ struct NNUE
 			return _mm_cvtss_f32(s);
 		}
 
-		static inline int get_embedding_index(uint8_t king_square, int perspective, int color, int piece, int square)
+		static __forceinline int get_embedding_index(uint8_t king_square, int perspective, int color, int piece, int square)
 		{
 			int king_sq = (perspective == BLACK) ? (king_square ^ 56) : king_square;
+			bool mirror = (king_sq & 7) >= 4;
+
+			if (mirror)
+				king_sq ^= 7;
+
+			int king_bucket = ((king_sq >> 3) * 4) + (king_sq & 3);
+			int actual_square = (perspective == BLACK) ? (square ^ 56) : square;
+
+			if (mirror)
+				actual_square ^= 7;
 
 			int plane;
+
 			if (piece == KING)
 				plane = 10;
 			else if (color == perspective)
 				plane = piece;
 			else
-				plane = 5 + (piece);
+				plane = 5 + piece;
 
-			int actual_square = (perspective == BLACK) ? (square ^ 56) : square;
-			return king_sq * (11 * 64) + plane * 64 + actual_square;
+			return king_bucket * (11 * 64) + plane * 64 + actual_square;
 		}
 
-		inline void add_embedding(int perspective, int index)
+		static __forceinline int get_castling_embedding_index(int perspective, int castling_right_index)
 		{
-			const float* __restrict row = embeddings + index * INPUT;
+			if (perspective == WHITE)
+				return CASTLING_BASE + castling_right_index;
 
-			for (int i = 0; i + 32 <= INPUT; i += 32)
+			switch (castling_right_index)
+			{
+			case 0:
+				return CASTLING_BASE + 2;
+			case 1:
+				return CASTLING_BASE + 3;
+			case 2:
+				return CASTLING_BASE + 0;
+			default:
+				return CASTLING_BASE + 1;
+			}
+		}
+
+		__forceinline void add_embedding(int perspective, int index)
+		{
+			const float* __restrict row = embeddings + index * EMBEDDING_DIM;
+
+			for (int i = 0; i + 32 <= EMBEDDING_DIM; i += 32)
 			{
 				__m256 a0 = _mm256_load_ps(accumulator[perspective] + i + 0);
 				__m256 a1 = _mm256_load_ps(accumulator[perspective] + i + 8);
@@ -65,11 +96,11 @@ struct NNUE
 			}
 		}
 
-		inline void sub_embedding(int perspective, int index)
+		__forceinline void sub_embedding(int perspective, int index)
 		{
-			const float* __restrict row = embeddings + index * INPUT;
+			const float* __restrict row = embeddings + index * EMBEDDING_DIM;
 
-			for (int i = 0; i + 32 <= INPUT; i += 32)
+			for (int i = 0; i + 32 <= EMBEDDING_DIM; i += 32)
 			{
 				__m256 a0 = _mm256_load_ps(accumulator[perspective] + i + 0);
 				__m256 a1 = _mm256_load_ps(accumulator[perspective] + i + 8);
@@ -88,7 +119,7 @@ struct NNUE
 			}
 		}
 
-		inline void add_piece(const uint8_t (&king_square)[COLOR_NB], int color, int piece, int square)
+		__forceinline void add_piece(const uint8_t(&king_square)[COLOR_NB], int color, int piece, int square)
 		{
 			for (int perspective = 0; perspective < COLOR_NB; ++perspective)
 			{
@@ -100,7 +131,7 @@ struct NNUE
 			}
 		}
 
-		inline void remove_piece(const uint8_t (&king_square)[COLOR_NB], int color, int piece, int square)
+		__forceinline void remove_piece(const uint8_t(&king_square)[COLOR_NB], int color, int piece, int square)
 		{
 			for (int perspective = 0; perspective < COLOR_NB; ++perspective)
 			{
@@ -112,32 +143,64 @@ struct NNUE
 			}
 		}
 
+		__forceinline void add_castling_right(int perspective, int rights_index)
+		{
+			add_embedding(perspective, get_castling_embedding_index(perspective, rights_index));
+		}
+
+		__forceinline void remove_castling_right(int perspective, int rights_index)
+		{
+			sub_embedding(perspective, get_castling_embedding_index(perspective, rights_index));
+		}
+
 	public:
-		inline float forward(int color) const
+		__forceinline int forward(int color) const
 		{
 			alignas(32) float h1[H1];
 			alignas(32) float h2[H2];
 
-			const float* __restrict input = accumulator[color];
+			const float* __restrict us_input = accumulator[color];
+			const float* __restrict them_input = accumulator[color ^ 1];
 
 			const __m256 zero256 = _mm256_setzero_ps();
+			const __m256 ones256 = _mm256_set1_ps(1.0f);
 			const __m128 zero128 = _mm_setzero_ps();
 
 			for (int o = 0; o < H1; o += 4)
 			{
+				_mm_prefetch((const char*)(fc1_w + (o + 4) * INPUT), _MM_HINT_T0);
+				_mm_prefetch((const char*)(fc1_w + (o + 5) * INPUT), _MM_HINT_T0);
+
 				__m256 sums[4];
 				for (int i = 0; i < 4; ++i)
 				{
 					sums[i] = zero256;
 				}
 
-				for (int i = 0; i < INPUT; i += 8)
+				for (int i = 0; i < EMBEDDING_DIM; i += 8)
 				{
-					__m256 in = _mm256_load_ps(input + i);
-					sums[0] = _mm256_fmadd_ps(in, _mm256_load_ps(fc1_w + (o + 0) * INPUT + i), sums[0]);
-					sums[1] = _mm256_fmadd_ps(in, _mm256_load_ps(fc1_w + (o + 1) * INPUT + i), sums[1]);
-					sums[2] = _mm256_fmadd_ps(in, _mm256_load_ps(fc1_w + (o + 2) * INPUT + i), sums[2]);
-					sums[3] = _mm256_fmadd_ps(in, _mm256_load_ps(fc1_w + (o + 3) * INPUT + i), sums[3]);
+					__m256 raw_in = _mm256_load_ps(us_input + i);
+
+					__m256 clamped = _mm256_min_ps(_mm256_max_ps(raw_in, zero256), ones256);
+					__m256 activated_in = _mm256_mul_ps(clamped, clamped);
+
+					sums[0] = _mm256_fmadd_ps(activated_in, _mm256_load_ps(fc1_w + (o + 0) * INPUT + i), sums[0]);
+					sums[1] = _mm256_fmadd_ps(activated_in, _mm256_load_ps(fc1_w + (o + 1) * INPUT + i), sums[1]);
+					sums[2] = _mm256_fmadd_ps(activated_in, _mm256_load_ps(fc1_w + (o + 2) * INPUT + i), sums[2]);
+					sums[3] = _mm256_fmadd_ps(activated_in, _mm256_load_ps(fc1_w + (o + 3) * INPUT + i), sums[3]);
+				}
+
+				for (int i = 0; i < EMBEDDING_DIM; i += 8)
+				{
+					__m256 raw_in = _mm256_load_ps(them_input + i);
+
+					__m256 clamped = _mm256_min_ps(_mm256_max_ps(raw_in, zero256), ones256);
+					__m256 activated_in = _mm256_mul_ps(clamped, clamped);
+
+					sums[0] = _mm256_fmadd_ps(activated_in, _mm256_load_ps(fc1_w + (o + 0) * INPUT + EMBEDDING_DIM + i), sums[0]);
+					sums[1] = _mm256_fmadd_ps(activated_in, _mm256_load_ps(fc1_w + (o + 1) * INPUT + EMBEDDING_DIM + i), sums[1]);
+					sums[2] = _mm256_fmadd_ps(activated_in, _mm256_load_ps(fc1_w + (o + 2) * INPUT + EMBEDDING_DIM + i), sums[2]);
+					sums[3] = _mm256_fmadd_ps(activated_in, _mm256_load_ps(fc1_w + (o + 3) * INPUT + EMBEDDING_DIM + i), sums[3]);
 				}
 
 				float temp[4];
@@ -152,6 +215,9 @@ struct NNUE
 
 			for (int o = 0; o < H2; o += 4)
 			{
+				_mm_prefetch((const char*)(fc2_w + (o + 4) * H1), _MM_HINT_T0);
+				_mm_prefetch((const char*)(fc2_w + (o + 5) * H1), _MM_HINT_T0);
+
 				__m256 sums[4];
 				for (int i = 0; i < 4; ++i)
 				{
@@ -185,10 +251,10 @@ struct NNUE
 				final_sum = _mm256_fmadd_ps(v_w, v_h, final_sum);
 			}
 
-			return (hsum_ps_avx(final_sum) + fc3_b[0]) * 600.0f;
+			return (int)(atanh(hsum_ps_avx(final_sum) + fc3_b[0]) * 400.0f);
 		}
 
-		inline void build_accumulator(const board& chess_board)
+		__forceinline void build_accumulator(const board& chess_board)
 		{
 			std::memset(accumulator, 0, sizeof(accumulator));
 
@@ -200,13 +266,39 @@ struct NNUE
 					while (pieces)
 					{
 						int square = pop_lsb(pieces);
+
+						if (pieces)
+						{
+							int next_square = lsb(pieces);
+							for (int perspective = 0; perspective < COLOR_NB; ++perspective)
+							{
+								int next_idx = get_embedding_index(chess_board.king_square[perspective], perspective, color, piece, next_square);
+								_mm_prefetch((const char*)(embeddings + next_idx * EMBEDDING_DIM), _MM_HINT_T0);
+							}
+						}
+
 						add_piece(chess_board.king_square, color, piece, square);
 					}
 				}
 			}
+
+			for (int perspective = 0; perspective < COLOR_NB; ++perspective)
+			{
+				if (chess_board.castling_rights & CASTLE_WHITE_KINGSIDE_RIGHT)
+					add_castling_right(perspective, 0);
+
+				if (chess_board.castling_rights & CASTLE_WHITE_QUEENSIDE_RIGHT)
+					add_castling_right(perspective, 1);
+
+				if (chess_board.castling_rights & CASTLE_BLACK_KINGSIDE_RIGHT)
+					add_castling_right(perspective, 2);
+
+				if (chess_board.castling_rights & CASTLE_BLACK_QUEENSIDE_RIGHT)
+					add_castling_right(perspective, 3);
+			}
 		}
 
-		inline void update(const board& new_board, const board& prev_board, uint16_t action)
+		__forceinline void update(const board& new_board, const board& prev_board, uint16_t action)
 		{
 			int from = from_sq(action);
 			uint8_t full_piece = prev_board.squares[from];
@@ -231,6 +323,35 @@ struct NNUE
 				remove_piece(prev_board.king_square, captured_color, captured_piece, to);
 			}
 
+			uint8_t old_rights = prev_board.castling_rights;
+			uint8_t new_rights = new_board.castling_rights;
+
+			if ((old_rights ^ new_rights) != 0)
+			{
+				for (int perspective = 0; perspective < COLOR_NB; ++perspective)
+				{
+					if ((old_rights & CASTLE_WHITE_KINGSIDE_RIGHT) && !(new_rights & CASTLE_WHITE_KINGSIDE_RIGHT))
+						remove_castling_right(perspective, 0);
+					else if (!(old_rights & CASTLE_WHITE_KINGSIDE_RIGHT) && (new_rights & CASTLE_WHITE_KINGSIDE_RIGHT))
+						add_castling_right(perspective, 0);
+
+					if ((old_rights & CASTLE_WHITE_QUEENSIDE_RIGHT) && !(new_rights & CASTLE_WHITE_QUEENSIDE_RIGHT))
+						remove_castling_right(perspective, 1);
+					else if (!(old_rights & CASTLE_WHITE_QUEENSIDE_RIGHT) && (new_rights & CASTLE_WHITE_QUEENSIDE_RIGHT))
+						add_castling_right(perspective, 1);
+
+					if ((old_rights & CASTLE_BLACK_KINGSIDE_RIGHT) && !(new_rights & CASTLE_BLACK_KINGSIDE_RIGHT))
+						remove_castling_right(perspective, 2);
+					else if (!(old_rights & CASTLE_BLACK_KINGSIDE_RIGHT) && (new_rights & CASTLE_BLACK_KINGSIDE_RIGHT))
+						add_castling_right(perspective, 2);
+
+					if ((old_rights & CASTLE_BLACK_QUEENSIDE_RIGHT) && !(new_rights & CASTLE_BLACK_QUEENSIDE_RIGHT))
+						remove_castling_right(perspective, 3);
+					else if (!(old_rights & CASTLE_BLACK_QUEENSIDE_RIGHT) && (new_rights & CASTLE_BLACK_QUEENSIDE_RIGHT))
+						add_castling_right(perspective, 3);
+				}
+			}
+
 			if (piece == PAWN)
 			{
 				if (is_promo(action_flags))
@@ -253,7 +374,7 @@ struct NNUE
 			add_piece(new_board.king_square, color, piece, to);
 		}
 
-		inline void test(const board& chess_board)
+		__forceinline void test(const board& chess_board)
 		{
 			NNUE temp = *this;
 			temp.build_accumulator(chess_board);
@@ -270,4 +391,4 @@ struct NNUE
 				}
 			}
 		}
-};
+	};

@@ -25,23 +25,23 @@
     <Filter Include="Source Files\Board\Action Generation">
       <UniqueIdentifier>{739096f3-2f54-40e8-b345-d953e3d5333e}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\Bot">
-      <UniqueIdentifier>{fbf19129-42b9-43e8-9cc5-825ecb5fefe5}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\Bot">
-      <UniqueIdentifier>{9895afd7-4e95-4916-b3f3-acc7cf8e26b9}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Header Files\Types">
       <UniqueIdentifier>{75cd7891-28eb-4092-9b66-6f4b263fd30c}</UniqueIdentifier>
     </Filter>
     <Filter Include="Source Files\Types">
       <UniqueIdentifier>{6cea5473-baf3-490b-9e8d-e2dbfa520e90}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Source Files\Bot\NNUE">
-      <UniqueIdentifier>{ce83e4ee-ebc1-4675-a042-c2eadefdacfb}</UniqueIdentifier>
+    <Filter Include="Header Files\Search">
+      <UniqueIdentifier>{fbf19129-42b9-43e8-9cc5-825ecb5fefe5}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\Bot\NNUE">
+    <Filter Include="Header Files\Search\NNUE">
       <UniqueIdentifier>{b452417f-d450-424f-a28d-74eb60b6471f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Search">
+      <UniqueIdentifier>{9895afd7-4e95-4916-b3f3-acc7cf8e26b9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Search\NNUE">
+      <UniqueIdentifier>{ce83e4ee-ebc1-4675-a042-c2eadefdacfb}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -60,29 +60,32 @@
     <ClInclude Include="init.h">
       <Filter>Header Files\Board\Action Generation</Filter>
     </ClInclude>
-    <ClInclude Include="bot.h">
-      <Filter>Header Files\Bot</Filter>
+    <ClInclude Include="search.h">
+      <Filter>Header Files\Search</Filter>
     </ClInclude>
     <ClInclude Include="transposition_table.h">
-      <Filter>Header Files\Bot</Filter>
+      <Filter>Header Files\Search</Filter>
     </ClInclude>
     <ClInclude Include="zobrist_hash.h">
-      <Filter>Header Files\Bot</Filter>
+      <Filter>Header Files\Search</Filter>
     </ClInclude>
     <ClInclude Include="uci_communicator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="parameters.h">
-      <Filter>Header Files\Bot\NNUE</Filter>
+      <Filter>Header Files\Search\NNUE</Filter>
     </ClInclude>
     <ClInclude Include="nnue.h">
-      <Filter>Header Files\Bot\NNUE</Filter>
+      <Filter>Header Files\Search\NNUE</Filter>
     </ClInclude>
     <ClInclude Include="options.h">
-      <Filter>Header Files\Bot</Filter>
+      <Filter>Header Files\Search</Filter>
     </ClInclude>
     <ClInclude Include="bits.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="action_picker.h">
+      <Filter>Header Files\Search</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -92,11 +95,11 @@
     <ClCompile Include="init.cpp">
       <Filter>Source Files\Board\Action Generation</Filter>
     </ClCompile>
-    <ClCompile Include="bot.cpp">
-      <Filter>Source Files\Bot</Filter>
+    <ClCompile Include="search.cpp">
+      <Filter>Source Files\Search</Filter>
     </ClCompile>
     <ClCompile Include="zobrist_hash.cpp">
-      <Filter>Source Files\Bot</Filter>
+      <Filter>Source Files\Search</Filter>
     </ClCompile>
     <ClCompile Include="action.cpp">
       <Filter>Source Files\Types</Filter>
@@ -108,10 +111,10 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="parameters.cpp">
-      <Filter>Source Files\Bot\NNUE</Filter>
+      <Filter>Source Files\Search\NNUE</Filter>
     </ClCompile>
     <ClCompile Include="options.cpp">
-      <Filter>Source Files\Bot</Filter>
+      <Filter>Source Files\Search</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

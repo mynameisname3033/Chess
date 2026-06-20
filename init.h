@@ -23,6 +23,6 @@ extern uint64_t bishop_magics[64];
 extern int rook_shifts[64];
 extern int bishop_shifts[64];
 
-static constexpr int dirs[8] = { 9, 7, -7, -9, 8, -8, 1, -1 };
+static inline constexpr int dirs[8] = { 9, 7, -7, -9, 8, -8, 1, -1 };
 
 void init_action_generator();

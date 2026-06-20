@@ -151,7 +151,7 @@ static void compute_bishop_masks()
 	}
 }
 
-static inline uint64_t compute_bishop_attack(int square, uint64_t blockers)
+static __forceinline uint64_t compute_bishop_attack(int square, uint64_t blockers)
 {
 	uint64_t attacks = 0;
 
@@ -171,7 +171,7 @@ static inline uint64_t compute_bishop_attack(int square, uint64_t blockers)
 	return attacks;
 }
 
-static inline uint64_t compute_rook_attack(int square, uint64_t blockers)
+static __forceinline uint64_t compute_rook_attack(int square, uint64_t blockers)
 {
 	uint64_t attacks = 0;
 
@@ -192,7 +192,7 @@ static inline uint64_t compute_rook_attack(int square, uint64_t blockers)
 	return attacks;
 }
 
-static inline uint64_t subset_to_bb(int subset, uint64_t mask)
+static __forceinline uint64_t subset_to_bb(int subset, uint64_t mask)
 {
 	uint64_t bb = 0;
 	int bit_index = 0;
@@ -208,7 +208,7 @@ static inline uint64_t subset_to_bb(int subset, uint64_t mask)
 	return bb;
 }
 
-static inline bool test_bishop_magic(uint64_t magic, int square)
+static __forceinline bool test_bishop_magic(uint64_t magic, int square)
 {
 	if (__popcnt64((bishop_masks[square] * magic) & 0xFF00000000000000ull) < 6)
 		return false;
@@ -243,7 +243,7 @@ static inline bool test_bishop_magic(uint64_t magic, int square)
 	return true;
 }
 
-static inline bool test_rook_magic(uint64_t magic, int square)
+static __forceinline bool test_rook_magic(uint64_t magic, int square)
 {
 	if (__popcnt64((rook_masks[square] * magic) & 0xFF00000000000000ull) < 6)
 		return false;
@@ -324,7 +324,7 @@ static void init_dist_to_edge()
 	}
 }
 
-static inline int sign(int x) { return (x > 0) - (x < 0); }
+static __forceinline int sign(int x) { return (x > 0) - (x < 0); }
 
 static void init_aligned_mask()
 {

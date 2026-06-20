@@ -22,11 +22,11 @@ void init_parameters(const std::string& filename)
 	FILE* f = fopen(filename.c_str(), "rb");
 	if (!f)
 	{
-		std::cerr << "Failed to open parameters file\n";
+		std::cerr << "Failed to open parameters file" << std::endl;
 		exit(1);
 	}
 
-	embeddings = (float*)_mm_malloc(sizeof(float) * EMBEDDINGS * INPUT, 32);
+	embeddings = (float*)_mm_malloc(sizeof(float) * EMBEDDINGS * EMBEDDING_DIM, 32);
 	fc1_w = (float*)_mm_malloc(sizeof(float) * H1 * INPUT, 32);
 	fc1_b = (float*)_mm_malloc(sizeof(float) * H1, 32);
 	fc2_w = (float*)_mm_malloc(sizeof(float) * H2 * H1, 32);
@@ -38,12 +38,12 @@ void init_parameters(const std::string& filename)
 	{
 		if (expected != got)
 		{
-			std::cerr << "Parameter file corrupted\n";
+			std::cerr << "Parameter file corrupted" << std::endl;
 			exit(1);
 		}
 	};
 
-	check(EMBEDDINGS * INPUT, fread(embeddings, sizeof(float), EMBEDDINGS * INPUT, f));
+	check(EMBEDDINGS * EMBEDDING_DIM, fread(embeddings, sizeof(float), EMBEDDINGS * EMBEDDING_DIM, f));
 	check(H1 * INPUT, fread(fc1_w, sizeof(float), H1 * INPUT, f));
 	check(H1, fread(fc1_b, sizeof(float), H1, f));
 	check(H2 * H1, fread(fc2_w, sizeof(float), H2 * H1, f));

@@ -7,7 +7,7 @@
 #include "board.h"
 #include "action.h"
 #include "init.h"
-#include "bot.h"
+#include "search.h"
 #include "zobrist_hash.h"
 #include "uci_communicator.h"
 #include "parameters.h"
@@ -46,7 +46,7 @@ static uint64_t perft_divide(board& chess_board, int depth)
 		temp.make_action(action);
 
 		uint64_t nodes = perft(temp, depth - 1);
-		std::cout << action_to_string(action, temp.side_to_move) << ", nodes: " << nodes << "\n";
+		std::cout << action_to_string(action, temp.side_to_move) << ", nodes: " << nodes << std::endl;
 
 		total_nodes += nodes;
 	}
@@ -68,11 +68,11 @@ static std::vector<std::string> split(const std::string& s)
 
 int main()
 {
-	init_parameters("C:/Users/akhil/c++/repos/Chess/nn_train/nnue_params.bin");
+	init_parameters("C:/Users/akhil/c++/repos/Chess/nn_train/nnue_params8.bin");
 	init_zobrist_rng();
 	init_action_generator();
 	init_LAR_table();
-	bot_reset();
+	reset_engine();
 
 	board chess_board = {};
 	chess_board.load_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
@@ -83,6 +83,8 @@ int main()
 	//chess_board.load_fen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1");
 	//chess_board.load_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -");
 	//chess_board.load_fen("1k6/p4pp1/8/6n1/8/8/pK6/7q b - - 1 52");
+
+	//chess_board.load_fen("rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2");
 
 	//std::cout << chess_board.get_fen() << std::endl;
 	//chess_board.print(-1);
@@ -105,46 +107,46 @@ int main()
 	{
 		if (input == "uci")
 		{
-			std::cout << "id name MyEngine\n";
-			std::cout << "id author Akhil\n";
+			std::cout << "id name MyEngine" << std::endl;
+			std::cout << "id author Akhil" << std::endl;
 
-			std::cout << "option name MAX_THINKING_TIME_MS type spin default 20000 min 0 max 10000000\n";
-			std::cout << "option name MIN_THINKING_TIME_MS type spin default 20 min 0 max 10000000\n";
-			std::cout << "option name TIME_DIVISOR type spin default 25 min 0 max 500\n";
-			std::cout << "option name DEPTH_TIME_CUTOFF_PERCENT type spin default 60 min 0 max 100\n";
+			std::cout << "option name MAX_THINKING_TIME_MS type spin default 15000 min 0 max 10000000" << std::endl;
+			std::cout << "option name MIN_THINKING_TIME_MS type spin default 150 min 0 max 10000000" << std::endl;
+			std::cout << "option name TIME_DIVISOR type spin default 25 min 0 max 500" << std::endl;
 
-			std::cout << "option name MIN_LAR_INDEX type spin default 6 min 0 max 218\n";
-			std::cout << "option name MIN_LAR_DEPTH_REMAINING type spin default 3 min 0 max " << MAX_DEPTH << "\n";
-			std::cout << "option name LAR_REDUCTION_DIVISOR type spin default 7 min 0 max 100\n";
+			std::cout << "option name MIN_LAR_INDEX type spin default 6 min 0 max 218" << std::endl;
+			std::cout << "option name MIN_LAR_DEPTH_REMAINING type spin default 3 min 0 max " << MAX_DEPTH << std::endl;
+			std::cout << "option name LAR_REDUCTION_DIVISOR type spin default 7 min 0 max 100" << std::endl;
 
-			std::cout << "option name BASE_LAP_INDEX type spin default 3 min 0 max 218\n";
-			std::cout << "option name MAX_LAP_DEPTH_REMAINING type spin default 2 min 0 max " << MAX_DEPTH << "\n";
+			std::cout << "option name MAX_HEURISTIC_VALUE type spin default 16384 min 0 max 1000000" << std::endl;
+			std::cout << "option name HISTORY_REDUCTION_DIVISOR type spin default 4000 min 0 max 100000" << std::endl;
 
-			std::cout << "option name ASPIRATION_WINDOW type spin default 35 min 5 max 500\n";
+			std::cout << "option name BASE_LAP_INDEX type spin default 3 min 0 max 218" << std::endl;
+			std::cout << "option name MAX_LAP_DEPTH_REMAINING type spin default 2 min 0 max " << MAX_DEPTH << std::endl;
 
-			std::cout << "option name DELTA_PRUNING_MARGIN type spin default 300 min 0 max 2500\n";
+			std::cout << "option name ASPIRATION_WINDOW type spin default 35 min 5 max 500" << std::endl;
 
-			std::cout << "option name MAX_RFP_DEPTH_REMAINING type spin default 2 min 0 max " << MAX_DEPTH << "\n";
-			std::cout << "option name RFP_MARGIN_MULTIPLIER type spin default 150 min -2500 max 2500\n";
+			std::cout << "option name MAX_RFP_DEPTH_REMAINING type spin default 4 min 0 max " << MAX_DEPTH << std::endl;
+			std::cout << "option name RFP_MARGIN_MULTIPLIER type spin default 150 min -2500 max 2500" << std::endl;
 
-			std::cout << "option name MAX_FP_DEPTH_REMAINING type spin default 2 min 0 max " << MAX_DEPTH << "\n";
-			std::cout << "option name FP_MARGIN_MULTIPLIER type spin default 150 min -2500 max 2500\n";
+			std::cout << "option name MAX_FP_DEPTH_REMAINING type spin default 2 min 0 max " << MAX_DEPTH << std::endl;
+			std::cout << "option name FP_MARGIN_MULTIPLIER type spin default 150 min -2500 max 2500" << std::endl;
 
-			std::cout << "option name MIN_NULL_PRUNING_DEPTH_REMAINING type spin default 5 min 0 max " << MAX_DEPTH << "\n";
-			std::cout << "option name BASE_NULL_PRUNING_VERIFICATION_REDUCTION type spin default 3 min 0 max 10\n";
-			std::cout << "option name NULL_PRUNING_VERIFICATION_REDUCTION_DIVISOR type spin default 6 min 0 max 100\n";
+			std::cout << "option name MIN_NULL_PRUNING_DEPTH_REMAINING type spin default 3 min 0 max " << MAX_DEPTH << std::endl;
+			std::cout << "option name BASE_NULL_PRUNING_VERIFICATION_REDUCTION type spin default 3 min 0 max 10" << std::endl;
+			std::cout << "option name NULL_PRUNING_VERIFICATION_REDUCTION_DIVISOR type spin default 6 min 0 max 100" << std::endl;
 
-			std::cout << "option name MIN_IID_DEPTH_REMAINING type spin default 5 min 0 max " << MAX_DEPTH << "\n";
-			std::cout << "option name IID_DEPTH_REDUCTION type spin default 3 min 0 max 10\n";
+			std::cout << "option name MIN_IID_DEPTH_REMAINING type spin default 6 min 0 max " << MAX_DEPTH << std::endl;
+			std::cout << "option name IID_DEPTH_REDUCTION type spin default 3 min 0 max 10" << std::endl;
 
-			std::cout << "option name MIN_CHECK_EXTENSION_DEPTH_REMAINING type spin default 1 min 0 max " << MAX_DEPTH << "\n";
-			std::cout << "option name MAX_CHECK_EXTENSIONS type spin default 2 min 0 max 10\n";
+			std::cout << "option name MIN_CHECK_EXTENSION_DEPTH_REMAINING type spin default 1 min 0 max " << MAX_DEPTH << std::endl;
+			std::cout << "option name MAX_CHECK_EXTENSIONS type spin default 2 min 0 max 10" << std::endl;
 
-			std::cout << "uciok\n" << std::flush;
+			std::cout << "uciok" << std::endl;
 		}
 		else if (input == "isready")
 		{
-			std::cout << "readyok\n" << std::flush;
+			std::cout << "readyok" << std::endl;
 		}
 		else if (input.rfind("setoption", 0) == 0)
 		{
@@ -168,7 +170,7 @@ int main()
 		else if (input == "ucinewgame")
 		{
 			chess_board.load_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-			bot_reset();
+			reset_engine();
 		}
 		else if (input.rfind("position", 0) == 0)
 		{
@@ -180,7 +182,7 @@ int main()
 
 			if (legal_actions.count == 0)
 			{
-				std::cout << "bestmove 0000\n" << std::flush;
+				std::cout << "bestmove 0000" << std::endl;
 				continue;
 			}
 
@@ -188,7 +190,7 @@ int main()
 			uint16_t best = get_best_action(chess_board, legal_actions, params);
 			std::string best_str = action_to_string(best, chess_board.side_to_move);
 
-			std::cout << "bestmove " << best_str << "\n" << std::flush;
+			std::cout << "bestmove " << best_str << std::endl;
 		}
 		else if (input == "quit")
 		{

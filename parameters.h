@@ -2,11 +2,12 @@
 
 #include <string>
 
-constexpr int EMBEDDINGS = 45056;
-constexpr int INPUT = 512;
-constexpr int H1 = 32;
-constexpr int H2 = 32;
-constexpr int OUTPUT = 1;
+inline constexpr int EMBEDDINGS = 22532;
+inline constexpr int EMBEDDING_DIM = 384;
+inline constexpr int INPUT = EMBEDDING_DIM * 2;
+inline constexpr int H1 = 32;
+inline constexpr int H2 = 32;
+inline constexpr int OUTPUT = 1;
 
 extern alignas(32) float* __restrict embeddings;
 extern alignas(32) float* __restrict fc1_w;

@@ -1,5 +1,6 @@
 #include <random>
 #include <cstdint>
+#include <intrin0.inl.h>
 #include "zobrist_hash.h"
 #include "board.h"
 #include "bits.h"
@@ -10,9 +11,14 @@ uint64_t zobrist_side;
 uint64_t zobrist_castle[16];
 uint64_t zobrist_ep[8];
 
+uint64_t pawn_zobrist[COLOR_NB][64];
+uint64_t material_zobrist[COLOR_NB][PIECE_NB][17];
+
 void init_zobrist_rng()
 {
-	std::mt19937_64 rng(123456);
+	std::random_device rd;
+	std::mt19937_64 gen_64(rd());
+	std::uniform_int_distribution<uint64_t> distrib_64;
 
 	for (int color = 0; color < COLOR_NB; ++color)
 	{
@@ -20,21 +26,26 @@ void init_zobrist_rng()
 		{
 			for (int square = 0; square < 64; ++square)
 			{
-				zobrist_piece[color][piece][square] = rng();
+				zobrist_piece[color][piece][square] = distrib_64(gen_64);
 			}
+		}
+
+		for (int square = 0; square < 64; ++square)
+		{
+			pawn_zobrist[color][square] = distrib_64(gen_64);
 		}
 	}
 
-	zobrist_side = rng();
+	zobrist_side = distrib_64(gen_64);
 
 	for (int i = 0; i < 16; ++i)
 	{
-		zobrist_castle[i] = rng();
+		zobrist_castle[i] = distrib_64(gen_64);
 	}
 
 	for (int i = 0; i < 8; ++i)
 	{
-		zobrist_ep[i] = rng();
+		zobrist_ep[i] = distrib_64(gen_64);
 	}
 }
 

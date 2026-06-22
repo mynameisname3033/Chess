@@ -251,7 +251,9 @@ struct NNUE
 				final_sum = _mm256_fmadd_ps(v_w, v_h, final_sum);
 			}
 
-			return (int)(atanh(hsum_ps_avx(final_sum) + fc3_b[0]) * 400.0f);
+			float raw = hsum_ps_avx(final_sum) + fc3_b[0];
+			raw = fminf(fmaxf(raw, -0.999999f), 0.999999f);
+			return (int)(atanh(raw) * 400.0f);
 		}
 
 		__forceinline void build_accumulator(const board& chess_board)

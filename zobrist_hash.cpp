@@ -11,9 +11,6 @@ uint64_t zobrist_side;
 uint64_t zobrist_castle[16];
 uint64_t zobrist_ep[8];
 
-uint64_t pawn_zobrist[COLOR_NB][64];
-uint64_t material_zobrist[COLOR_NB][PIECE_NB][17];
-
 void init_zobrist_rng()
 {
 	std::random_device rd;
@@ -28,11 +25,6 @@ void init_zobrist_rng()
 			{
 				zobrist_piece[color][piece][square] = distrib_64(gen_64);
 			}
-		}
-
-		for (int square = 0; square < 64; ++square)
-		{
-			pawn_zobrist[color][square] = distrib_64(gen_64);
 		}
 	}
 

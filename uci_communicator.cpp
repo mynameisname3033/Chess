@@ -54,9 +54,9 @@ void set_position(board& chess_board, const std::string& command)
 	{
 		while (idx < (int)tokens.size())
 		{
-			uint16_t action = string_to_action(chess_board, tokens[idx++]);
-			if (action != 0)
-				chess_board.make_action(action);
+			uint16_t current_action = string_to_action(chess_board, tokens[idx++]);
+			if (current_action != 0)
+				chess_board.make_action(current_action);
 		}
 	}
 }

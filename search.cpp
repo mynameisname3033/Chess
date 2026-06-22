@@ -27,16 +27,15 @@ static transposition_table tt;
 static uint16_t killer_actions[MAX_DEPTH + 1][3];
 static int history_heuristic[COLOR_NB][64][64];
 
+static int LAR_table[218][MAX_DEPTH + 1];
+
 static uint16_t counteraction_heuristic_1[COLOR_NB][PIECE_NB][64];
 static uint16_t counteraction_heuristic_2[COLOR_NB][PIECE_NB][64];
 
-int continuation_history_1[COLOR_NB][PIECE_NB][64][PIECE_NB][64];
-int continuation_history_2[COLOR_NB][PIECE_NB][64][PIECE_NB][64];
-
-static int LAR_table[218][MAX_DEPTH + 1];
+static int continuation_history_1[COLOR_NB][PIECE_NB][64][PIECE_NB][64];
+static int continuation_history_2[COLOR_NB][PIECE_NB][64][PIECE_NB][64];
 
 static uint64_t nodes = 0;
-
 static bool search_aborted;
 static std::chrono::steady_clock::time_point search_start_time;
 static int search_hard_limit_ms;
@@ -569,7 +568,7 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 	int best_score = -INF;
 	uint16_t best_action = 0;
 
-	uint16_t(&killers)[3] = killer_actions[depth];
+	uint16_t (&killers)[3] = killer_actions[depth];
 
 	uint16_t* counteraction_1 = nullptr;
 	uint16_t* counteraction_2 = nullptr;

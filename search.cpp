@@ -4,7 +4,6 @@
 #include <cmath>
 #include <cstdint>
 #include <string>
-#include <utility>
 #include <string.h>
 #include <tuple>
 #include "search.h"
@@ -285,47 +284,47 @@ static int quiescence(const board& chess_board, const NNUE& net, int alpha, int 
 	uint16_t action;
 
 	while ((action = picker.next([&](int* scores, int start, int end)
-	{
-		for (int i = start; i < end; ++i)
 		{
-			uint16_t current_action = legal_actions.actions[i];
-			int from = from_sq(current_action);
-			int to = to_sq(current_action);
-			int action_flags = flags(current_action);
+			for (int i = start; i < end; ++i)
+			{
+				uint16_t current_action = legal_actions.actions[i];
+				int from = from_sq(current_action);
+				int to = to_sq(current_action);
+				int action_flags = flags(current_action);
 
-			if (is_promo(action_flags))
-			{
-				scores[i] = 1000000 + PIECE_VALUES[promo_piece(action_flags)];
-			}
-			else if (chess_board.squares[to] != 0xFF || action_flags == EN_PASSANT)
-			{
-				int score = SEE(chess_board, current_action);
-				if (score < 0)
-					scores[i] = -BIG_INF;
+				if (is_promo(action_flags))
+				{
+					scores[i] = 1000000 + PIECE_VALUES[promo_piece(action_flags)];
+				}
+				else if (chess_board.squares[to] != 0xFF || action_flags == EN_PASSANT)
+				{
+					int score = SEE(chess_board, current_action);
+					if (score < 0)
+						scores[i] = -BIG_INF;
+					else
+						scores[i] = 800000 + score;
+				}
+				else if (current_action == counteraction_1)
+				{
+					scores[i] = 600000;
+				}
+				else if (current_action == counteraction_2)
+				{
+					scores[i] = 500000;
+				}
 				else
-					scores[i] = 800000 + score;
-			}
-			else if (current_action == counteraction_1)
-			{
-				scores[i] = 600000;
-			}
-			else if (current_action == counteraction_2)
-			{
-				scores[i] = 500000;
-			}
-			else
-			{
-				scores[i] = history_heuristic[color][from][to];
+				{
+					scores[i] = history_heuristic[color][from][to];
 
-				int moving_piece = full_piece_piece(chess_board.squares[from]);
+					int moving_piece = full_piece_piece(chess_board.squares[from]);
 
-				if (continuation_values_1)
-					scores[i] += (*continuation_values_1)[moving_piece][to];
-				if (continuation_values_2)
-					scores[i] += (*continuation_values_2)[moving_piece][to];
+					if (continuation_values_1)
+						scores[i] += (*continuation_values_1)[moving_piece][to];
+					if (continuation_values_2)
+						scores[i] += (*continuation_values_2)[moving_piece][to];
+				}
 			}
-		}
-	})) != 0)
+		})) != 0)
 
 	{
 		if (picker.scored && picker.scores[picker.current_index - 1] == -BIG_INF)
@@ -375,7 +374,7 @@ static int quiescence(const board& chess_board, const NNUE& net, int alpha, int 
 	return alpha;
 }
 
-static int negamax(const board& chess_board, const NNUE& net, int depth_remaining, int alpha, int beta, int depth, uint16_t prev_action_1, int prev_piece_1, uint16_t prev_action_2, int prev_piece_2, int check_extensions = 0)
+static int negamax(const board& chess_board, const NNUE& net, int depth_remaining, int alpha, int beta, int depth, uint16_t prev_action_1, int prev_piece_1, uint16_t prev_action_2, int prev_piece_2, int check_extensions = 0, uint16_t excluded_action = 0)
 {
 	if (!(++nodes & 8191))
 	{
@@ -404,10 +403,33 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 	uint64_t key = chess_board.hash;
 	const TTEntry* entry = tt.probe(key);
 
+	bool tt_hit = entry && !entry->is_quiescence;
+	int tt_score = tt_hit ? entry->score : -INF;
+	uint16_t tt_action = tt_hit ? entry->best_action : 0;
+	int tt_depth = tt_hit ? entry->depth_remaining : 0;
+	int tt_bound = tt_hit ? entry->flag : EXACT;
+
+	if (tt_hit)
+	{
+		if (tt_score > MATE_THRESHOLD)
+			tt_score -= depth;
+		else if (tt_score < -MATE_THRESHOLD)
+			tt_score += depth;
+	}
+
 	if (root_is_pv && (!entry || entry->is_quiescence) && depth_remaining >= MIN_IID_DEPTH_REMAINING)
 	{
 		negamax(chess_board, net, depth_remaining - IID_DEPTH_REDUCTION, alpha, beta, depth, prev_action_1, prev_piece_1, prev_action_2, prev_piece_2, check_extensions);
 		entry = tt.probe(key);
+		tt_hit = entry && !entry->is_quiescence;
+		if (tt_hit) {
+			tt_score = entry->score;
+			tt_action = entry->best_action;
+			tt_depth = entry->depth_remaining;
+			tt_bound = entry->flag;
+			if (tt_score > MATE_THRESHOLD) tt_score -= depth;
+			else if (tt_score < -MATE_THRESHOLD) tt_score += depth;
+		}
 	}
 
 	int color = chess_board.side_to_move;
@@ -419,24 +441,17 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 		++check_extensions;
 	}
 
-	if (entry && !entry->is_quiescence && entry->depth_remaining >= depth_remaining)
+	if (tt_hit && tt_depth >= depth_remaining && excluded_action == 0)
 	{
-		int score = entry->score;
-
-		if (score > MATE_THRESHOLD)
-			score -= depth;
-		else if (score < -MATE_THRESHOLD)
-			score += depth;
-
-		if (entry->flag == EXACT)
+		if (tt_bound == EXACT)
 		{
-			if (root_is_pv && entry->best_action != 0)
+			if (root_is_pv && tt_action != 0)
 			{
-				pv_table[depth][depth] = entry->best_action;
+				pv_table[depth][depth] = tt_action;
 				pv_length[depth] = depth + 1;
 
 				board temp_board = chess_board;
-				temp_board.make_action(entry->best_action);
+				temp_board.make_action(tt_action);
 
 				for (int pv_depth = depth + 1; pv_depth < MAX_DEPTH; ++pv_depth)
 				{
@@ -450,21 +465,21 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 				}
 			}
 
-			return score;
+			return tt_score;
 		}
-		if (entry->flag == LOWERBOUND)
-			alpha = std::max(alpha, score);
-		else if (entry->flag == UPPERBOUND)
-			beta = std::min(beta, score);
+		if (tt_bound == LOWERBOUND)
+			alpha = std::max(alpha, tt_score);
+		else if (tt_bound == UPPERBOUND)
+			beta = std::min(beta, tt_score);
 
 		if (alpha >= beta)
-			return score;
+			return tt_score;
 	}
 
 	int static_eval = entry && entry->static_eval != -INF ? entry->static_eval : -INF;
 	bool eval_is_computed = (static_eval != -INF);
 
-	if (!root_is_pv && !root_in_check && depth_remaining >= MIN_NULL_PRUNING_DEPTH_REMAINING && (chess_board.pieces[color][KNIGHT] || chess_board.pieces[color][BISHOP] || chess_board.pieces[color][ROOK] || chess_board.pieces[color][QUEEN]))
+	if (!root_is_pv && !root_in_check && excluded_action == 0 && depth_remaining >= MIN_NULL_PRUNING_DEPTH_REMAINING && (chess_board.pieces[color][KNIGHT] || chess_board.pieces[color][BISHOP] || chess_board.pieces[color][ROOK] || chess_board.pieces[color][QUEEN]))
 	{
 		if (!eval_is_computed)
 		{
@@ -492,6 +507,7 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 		}
 	}
 
+
 	if (depth_remaining == 0)
 		return quiescence(chess_board, net, alpha, beta, 1, depth, prev_action_1, prev_piece_1, prev_action_2, prev_piece_2);
 
@@ -505,7 +521,7 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 			return 0;
 	}
 
-	if (!root_is_pv && !root_in_check && depth_remaining <= MAX_RFP_DEPTH_REMAINING)
+	if (!root_is_pv && !root_in_check && excluded_action == 0 && depth_remaining <= MAX_RFP_DEPTH_REMAINING)
 	{
 		if (!eval_is_computed)
 		{
@@ -522,7 +538,7 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 
 	int futility_pruning_threshold = -INF;
 
-	if (!root_is_pv && !root_in_check && depth_remaining <= MAX_FP_DEPTH_REMAINING)
+	if (!root_is_pv && !root_in_check && excluded_action == 0 && depth_remaining <= MAX_FP_DEPTH_REMAINING)
 	{
 		if (!eval_is_computed)
 		{
@@ -531,6 +547,21 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 		}
 
 		futility_pruning_threshold = static_eval + FP_MARGIN_MULTIPLIER * depth_remaining;
+	}
+
+	int extension = 0;
+	if (excluded_action == 0 && depth_remaining >= MIN_SE_DEPTH_REMAINING && tt_action != 0 && tt_depth >= depth_remaining - SE_DEPTH_REMAINING_MIN_REDUCTION && tt_bound != UPPERBOUND && abs(tt_score) < MATE_THRESHOLD)
+	{
+		int singular_margin = depth_remaining * SE_MARGIN_MULTIPLIER;
+		int singular_beta = tt_score - singular_margin;
+		singular_beta = std::max(singular_beta, -INF + 1);
+
+		int singular_depth = (depth_remaining - SE_REDUCTION_BASE) / SE_REUCTION_DIVISOR;
+		int singular_score = negamax(chess_board, net, singular_depth, singular_beta - 1, singular_beta, depth, prev_action_1, prev_piece_1, prev_action_2, prev_piece_2, check_extensions, tt_action);
+		if (singular_score < singular_beta)
+		{
+			extension = 1;
+		}
 	}
 
 	int alpha_orig = alpha;
@@ -559,52 +590,55 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 		continuation_values_2 = &continuation_history_2[color][prev_piece_2][prev_to_2];
 	}
 
-	uint16_t tt_action = entry ? entry->best_action : 0;
 	action_picker picker(legal_actions, tt_action);
 
 	int action_count = 0;
 	uint16_t action;
 
 	while ((action = picker.next([&](int* scores, int start, int end)
-	{
-		for (int i = start; i < end; ++i)
 		{
-			uint16_t current_action = legal_actions.actions[i];
-			int from = from_sq(current_action);
-			int to = to_sq(current_action);
-			int action_flags = flags(current_action);
+			for (int i = start; i < end; ++i)
+			{
+				uint16_t current_action = legal_actions.actions[i];
+				int from = from_sq(current_action);
+				int to = to_sq(current_action);
+				int action_flags = flags(current_action);
 
-			if (is_promo(action_flags))
-			{
-				scores[i] = 1000000 + PIECE_VALUES[promo_piece(action_flags)];
-			}
-			else if (chess_board.squares[to] != 0xFF || action_flags == EN_PASSANT)
-			{
-				int score = SEE(chess_board, current_action);
-				if (score < 0)
-					scores[i] = -10000 + score;
+				if (is_promo(action_flags))
+				{
+					scores[i] = 1000000 + PIECE_VALUES[promo_piece(action_flags)];
+				}
+				else if (chess_board.squares[to] != 0xFF || action_flags == EN_PASSANT)
+				{
+					int score = SEE(chess_board, current_action);
+					if (score < 0)
+						scores[i] = -10000 + score;
+					else
+						scores[i] = 800000 + score;
+				}
+				else if (current_action == killers[0]) { scores[i] = 700000; }
+				else if (current_action == killers[1]) { scores[i] = 700000 - 1; }
+				else if (current_action == killers[2]) { scores[i] = 700000 - 2; }
+				else if (counteraction_1 && current_action == *counteraction_1) { scores[i] = 600000; }
+				else if (counteraction_2 && current_action == *counteraction_2) { scores[i] = 600000 - 1; }
 				else
-					scores[i] = 800000 + score;
-			}
-			else if (current_action == killers[0]) { scores[i] = 700000; }
-			else if (current_action == killers[1]) { scores[i] = 700000 - 1; }
-			else if (current_action == killers[2]) { scores[i] = 700000 - 2; }
-			else if (counteraction_1 && current_action == *counteraction_1) { scores[i] = 600000; }
-			else if (counteraction_2 && current_action == *counteraction_2) { scores[i] = 600000 - 1; }
-			else
-			{
-				scores[i] = history_heuristic[color][from][to];
+				{
+					scores[i] = history_heuristic[color][from][to];
 
-				int moving_piece = full_piece_piece(chess_board.squares[from]);
+					int moving_piece = full_piece_piece(chess_board.squares[from]);
 
-				if (continuation_values_1)
-					scores[i] += (*continuation_values_1)[moving_piece][to];
-				if (continuation_values_2)
-					scores[i] += (*continuation_values_2)[moving_piece][to];
+					if (continuation_values_1)
+						scores[i] += (*continuation_values_1)[moving_piece][to];
+					if (continuation_values_2)
+						scores[i] += (*continuation_values_2)[moving_piece][to];
+				}
 			}
-	}})) != 0)
+		})) != 0)
 
 	{
+		if (action == excluded_action)
+			continue;
+
 		int i = action_count++;
 
 		int to = to_sq(action);
@@ -637,7 +671,9 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 		temp_net.update(temp_board, chess_board, action);
 
 		int score;
-		int new_depth = depth_remaining - 1;
+
+		int local_extension = (action == tt_action) ? extension : 0;
+		int new_depth = depth_remaining - 1 + local_extension;
 
 		if (i == 0)
 		{
@@ -777,13 +813,16 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 	else
 		flag = EXACT;
 
-	int16_t tt_score = best_score;
-	if (tt_score > MATE_THRESHOLD)
-		tt_score += depth;
-	else if (tt_score < -MATE_THRESHOLD)
-		tt_score -= depth;
+	int16_t tt_score_store = best_score;
+	if (tt_score_store > MATE_THRESHOLD)
+		tt_score_store += depth;
+	else if (tt_score_store < -MATE_THRESHOLD)
+		tt_score_store -= depth;
 
-	tt.add(key, best_action, tt_score, static_eval, depth_remaining, flag, false);
+	if (excluded_action == 0)
+	{
+		tt.add(key, best_action, tt_score_store, static_eval, depth_remaining, flag, false);
+	}
 
 	return best_score;
 }
@@ -813,7 +852,7 @@ static __forceinline void age_heuristics()
 	memset(killer_actions, 0, sizeof(killer_actions));
 }
 
-static std::tuple<int, int, bool> choose_search_times(const go_params& params, int color)
+static __forceinline std::tuple<int, int, bool> choose_search_times(const go_params& params, int color)
 {
 	if (params.movetime != -1)
 		return { params.movetime, params.movetime, true };
@@ -895,45 +934,45 @@ uint16_t get_best_action(const board& chess_board, action_list& legal_actions, c
 			int action_count = 0;
 			uint16_t action;
 
-			while ((action = picker.next([&](int* scores, int start, int end) 
-			{
-				for (int i = start; i < end; ++i)
+			while ((action = picker.next([&](int* scores, int start, int end)
 				{
-					uint16_t current_action = legal_actions.actions[i];
-					int from = from_sq(current_action);
-					int to = to_sq(current_action);
-					int action_flags = flags(current_action);
+					for (int i = start; i < end; ++i)
+					{
+						uint16_t current_action = legal_actions.actions[i];
+						int from = from_sq(current_action);
+						int to = to_sq(current_action);
+						int action_flags = flags(current_action);
 
-					if (current_action == prev_current_best_action)
-					{
-						scores[i] = 4000000;
-					}
-					else if (current_action == best_action)
-					{
-						scores[i] = 3000000;
-					}
-					else if (entry && current_action == entry->best_action)
-					{
-						scores[i] = 2000000;
-					}
-					else if (is_promo(action_flags))
-					{
-						scores[i] = 1000000 + PIECE_VALUES[promo_piece(action_flags)];
-					}
-					else if (chess_board.squares[to] != 0xFF || action_flags == EN_PASSANT)
-					{
-						int score = SEE(chess_board, current_action);
-						if (score < 0)
-							scores[i] = -10000 + score;
+						if (current_action == prev_current_best_action)
+						{
+							scores[i] = 4000000;
+						}
+						else if (current_action == best_action)
+						{
+							scores[i] = 3000000;
+						}
+						else if (entry && current_action == entry->best_action)
+						{
+							scores[i] = 2000000;
+						}
+						else if (is_promo(action_flags))
+						{
+							scores[i] = 1000000 + PIECE_VALUES[promo_piece(action_flags)];
+						}
+						else if (chess_board.squares[to] != 0xFF || action_flags == EN_PASSANT)
+						{
+							int score = SEE(chess_board, current_action);
+							if (score < 0)
+								scores[i] = -10000 + score;
+							else
+								scores[i] = 800000 + score;
+						}
 						else
-							scores[i] = 800000 + score;
+						{
+							scores[i] = history_heuristic[color][from][to];
+						}
 					}
-					else
-					{
-						scores[i] = history_heuristic[color][from][to];
-					}
-				}
-			})) != 0)
+				})) != 0)
 
 			{
 				int i = action_count++;

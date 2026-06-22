@@ -391,6 +391,9 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 
 	pv_length[depth] = depth;
 
+	if (depth >= MAX_DEPTH)
+		return quiescence(chess_board, net, alpha, beta, 1, depth, prev_action_1, prev_piece_1, prev_action_2, prev_piece_2);
+
 	int mate_value = INF - depth;
 	if (mate_value <= alpha)
 		return alpha;
@@ -735,9 +738,12 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 			best_action = action;
 		}
 
+		bool raised_alpha = false;
+
 		if (score > alpha)
 		{
 			alpha = score;
+			raised_alpha = true;
 
 			pv_table[depth][depth] = action;
 			for (int next_ply = depth + 1; next_ply < pv_length[depth + 1]; ++next_ply)
@@ -784,7 +790,7 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 
 			break;
 		}
-		else if (quiet)
+		else if (quiet && !raised_alpha)
 		{
 			int penalty = depth_remaining;
 
@@ -854,6 +860,12 @@ static __forceinline void age_heuristics()
 
 static __forceinline std::tuple<int, int, bool> choose_search_times(const go_params& params, int color)
 {
+	if (params.depth != -1 || params.nodes != -1)
+		return { 1000000000, 1000000000, true };
+
+	if (params.infinite)
+		return { MAX_THINKING_TIME_MS, MAX_THINKING_TIME_MS, true };
+
 	if (params.movetime != -1)
 		return { params.movetime, params.movetime, true };
 
@@ -1104,6 +1116,9 @@ uint16_t get_best_action(const board& chess_board, action_list& legal_actions, c
 		time_factor *= 1.0f - 0.02f * std::min(best_action_stability, 5);
 		time_factor = std::max(time_factor, 0.4f);
 		int adjusted_soft_limit = (int)(search_soft_limit_ms * time_factor);
+
+		if (params.depth != -1 && depth >= params.depth || params.nodes != -1 && nodes >= params.nodes)
+			break;
 
 		search_hard_limit_ms = only_use_hard_limit ? search_hard_limit_ms : std::min(extreme_search_hard_limit_ms, adjusted_soft_limit * 2);
 		int effective_soft_limit = only_use_hard_limit ? search_hard_limit_ms : adjusted_soft_limit;

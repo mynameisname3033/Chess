@@ -4,40 +4,61 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build
 
-This is a Visual Studio 2022 (MSVC v143) C++ project targeting Windows x64.
+This is a Visual Studio C++ project. Build using Visual Studio 2022 or MSBuild:
 
-- **Build via Visual Studio**: Open `Chess.sln` and build with Ctrl+Shift+B
-- **Build via MSBuild**: `msbuild Chess.sln /p:Configuration=Release /p:Platform=x64`
-- **Run**: The output binary is a UCI chess engine; pipe UCI commands to it or connect it to a GUI (e.g., Arena, Cute Chess) or the `lichess-bot` Python wrapper in the `lichess-bot/` subdirectory
+```
+msbuild Chess.sln /p:Configuration=Release /p:Platform=x64
+```
 
-There are no automated tests — correctness is verified via `perft` (move count validation). To run perft, uncomment the relevant lines in `main.cpp` around `perft_divide(chess_board, N)`.
+Or open `Chess.sln` in Visual Studio and build from there. The output executable goes to `Chess\x64\Release\` or `Chess\x64\Debug\`.
+
+There are no automated tests — correctness is validated manually via perft (move generation) and UCI interaction.
+
+## Running
+
+The engine communicates via UCI protocol over stdin/stdout. On startup it loads an NNUE weights file hardcoded in `main.cpp`:
+
+```cpp
+init_parameters("C:/Users/akhil/c++/repos/Chess/nn_train/nnue_params8.bin");
+```
+
+Update this path if running on a different machine. To test perft or specific positions, uncomment the relevant lines in `main.cpp` before building.
 
 ## Architecture
 
-This is a UCI-compatible chess engine with NNUE evaluation. The main loop in `main.cpp` reads UCI commands from stdin and dispatches to the appropriate subsystems.
+This is a UCI chess engine with NNUE evaluation, written as a single-threaded C++ program.
 
-**Board representation** (`board.h`): Bitboard-based. `board` struct holds per-color, per-piece `uint64_t` bitboards, an `occupied` bitboard, a flat `squares[64]` array for O(1) piece lookup, Zobrist hash, repetition stack, and castling/en-passant state. `make_action()` is the core mutating function; there is no unmake — callers copy the board before making a move.
+### Core data structures
+- **`board`** (`board.h`) — The central game state. Uses bitboards (`uint64_t pieces[COLOR][PIECE]`), an 8x8 `squares[]` mailbox, Zobrist hash, repetition stack, castling rights, and en passant square. `make_action()` and `make_null_action()` are inline and mutate the board in place (callers copy before calling if they need to undo).
+- **`action`** (`action.h`) — Moves are packed into `uint16_t`: 6 bits from-square, 6 bits to-square, 4 bits flags (castling, en passant, promotions, double pawn push).
+- **`NNUE`** (`nnue.h`) — Efficiently-updated neural network for position evaluation. Uses king-bucketed embeddings (22532 total, 384-dim), two hidden layers (32 units each), AVX2 SIMD for inference. The accumulator is updated incrementally as pieces move. Weights are loaded from a binary file via `init_parameters()`.
 
-**Move generation** (`action_generator.h`, `action.h`): Actions are packed into `uint16_t` with from/to squares and flags. `generate_legal_actions()` returns an `action_list`. Move flags distinguish quiet, captures, promotions, castling, double pawn push, and en passant.
+### Move generation
+- **`action_generator.h`** / **`init.h`** / **`init.cpp`** — Magic bitboard move generation for sliders (bishops, rooks, queens). Attack tables for all piece types are precomputed at startup via `init_action_generator()`. `generate_legal_actions()` returns an `action_list` (fixed-size array + count).
+- **`action_picker.h`** — Staged move ordering: TT move first, then captures ordered by SEE/MVV-LVA, then killers and counter-moves, then quiet moves ordered by history heuristics.
 
-**Search** (`search.cpp`, `search.h`): Iterative deepening alpha-beta with:
-- Transposition table (`transposition_table.h`)
-- Null move pruning, reverse futility pruning (RFP), futility pruning (FP)
-- Late action reduction (LAR) with a precomputed `LAR_table[218][MAX_DEPTH+1]`
-- Late action pruning (LAP)
-- Aspiration windows
-- Internal iterative deepening (IID)
-- Check extensions
-- Move ordering via killer moves, history heuristic, counteraction heuristic, continuation history, and SEE
+### Search
+- **`search.cpp`** / **`search.h`** — Iterative deepening alpha-beta with:
+  - Aspiration windows
+  - Late move reductions (LMR) via precomputed `LAR_table`
+  - Late move pruning (LMP) via `LAP` table
+  - Null move pruning with verification
+  - Reverse futility pruning (RFP) and futility pruning (FP)
+  - Check extensions
+  - Internal iterative deepening (IID)
+  - Quiescence search with SEE pruning
+  - Killer moves (3 slots per ply), history heuristic, counter-move heuristic, 2-ply continuation history
+- **`transposition_table.h`** — Fixed-size TT (2^25 clusters of 4 entries). Uses Zobrist key for lookup; entries store best action, score, static eval, depth, and bound type (EXACT/LOWER/UPPER).
 
-**Evaluation** (`nnue.h`, `parameters.h`, `init.cpp`): NNUE (Efficiently Updatable Neural Network). The network weights are loaded at startup from a binary file — the path is hardcoded in `main.cpp`: `C:/Users/akhil/c++/repos/Chess/nn_train/nnue_params8.bin`. The accumulator is maintained incrementally per perspective.
+### UCI interface
+- **`uci_communicator.h/.cpp`** — Parses `position` and `go` commands. `set_position()` applies moves to the board. `parse_go_command()` returns time controls as `go_params`.
+- **`options.h/.cpp`** — All tunable search parameters (time management, pruning margins, reduction divisors) are exposed as UCI `option` entries and stored as globals accessed via `option_map`. Changing them at runtime calls `init_LAR_table()` to recompute reduction tables.
+- **`main.cpp`** — UCI loop: handles `uci`, `isready`, `setoption`, `ucinewgame`, `position`, `go`, `quit`. Also contains `perft`/`perft_divide` for move generation testing (commented out by default).
 
-**UCI interface** (`uci_communicator.h/.cpp`): Parses `position`, `go`, and `setoption` commands. All tunable search parameters are exposed as UCI options (see `options.h`, `options.cpp`) and stored in `option_map`.
+### Evaluation
+- **`parameters.h/.cpp`** — Loads/frees NNUE weight arrays from a binary file. Network shape: embeddings (22532×384) → accumulator (768) → FC1 (768→32) → FC2 (32→32) → FC3 (32→1).
+- **`zobrist_hash.h/.cpp`** — Zobrist keys for pieces, castling rights, en passant file, and side to move. `zobrist_hash()` computes a full hash; incremental updates are done inside `board::make_action()`.
+- **`bits.h`** — Bit manipulation utilities used throughout move generation and search.
 
-**Initialization** (`init.h`, `init.cpp`, `zobrist_hash.h/.cpp`): Must call `init_parameters()`, `init_zobrist_rng()`, `init_action_generator()`, `init_LAR_table()`, and `reset_engine()` before using the engine.
-
-## Key constraints
-
-- The NNUE weights path in `main.cpp:71` is an absolute local path — update it when running on a different machine.
-- AVX2 intrinsics are used in `nnue.h`; the target machine must support AVX2.
-- `__forceinline` and `__popcnt64`/`_tzcnt_u64` are MSVC/Windows intrinsics — the code is not portable to GCC/Clang without changes.
+### lichess-bot integration
+The `lichess-bot/` subdirectory is a separate Python project (its own git repo) that connects the engine to Lichess via their Bot API.

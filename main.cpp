@@ -111,10 +111,10 @@ int main()
 			std::cout << "id author Akhil" << std::endl;
 
 			std::cout << "option name MAX_THINKING_TIME_MS type spin default 15000 min 0 max 10000000" << std::endl;
-			std::cout << "option name MIN_THINKING_TIME_MS type spin default 150 min 0 max 10000000" << std::endl;
-			std::cout << "option name TIME_DIVISOR type spin default 25 min 0 max 500" << std::endl;
+			std::cout << "option name MIN_THINKING_TIME_MS type spin default 5 min 0 max 10000000" << std::endl;
+			std::cout << "option name TIME_DIVISOR type spin default 30 min 0 max 500" << std::endl;
 
-			std::cout << "option name MIN_LAR_INDEX type spin default 6 min 0 max 218" << std::endl;
+			std::cout << "option name MIN_LAR_INDEX type spin default 4 min 0 max 218" << std::endl;
 			std::cout << "option name MIN_LAR_DEPTH_REMAINING type spin default 3 min 0 max " << MAX_DEPTH << std::endl;
 			std::cout << "option name LAR_REDUCTION_DIVISOR type spin default 7 min 0 max 100" << std::endl;
 
@@ -126,10 +126,10 @@ int main()
 
 			std::cout << "option name ASPIRATION_WINDOW type spin default 35 min 5 max 500" << std::endl;
 
-			std::cout << "option name MAX_RFP_DEPTH_REMAINING type spin default 4 min 0 max " << MAX_DEPTH << std::endl;
+			std::cout << "option name MAX_RFP_DEPTH_REMAINING type spin default 3 min 0 max " << MAX_DEPTH << std::endl;
 			std::cout << "option name RFP_MARGIN_MULTIPLIER type spin default 150 min -2500 max 2500" << std::endl;
 
-			std::cout << "option name MAX_FP_DEPTH_REMAINING type spin default 2 min 0 max " << MAX_DEPTH << std::endl;
+			std::cout << "option name MAX_FP_DEPTH_REMAINING type spin default 1 min 0 max " << MAX_DEPTH << std::endl;
 			std::cout << "option name FP_MARGIN_MULTIPLIER type spin default 150 min -2500 max 2500" << std::endl;
 
 			std::cout << "option name MIN_NULL_PRUNING_DEPTH_REMAINING type spin default 3 min 0 max " << MAX_DEPTH << std::endl;
@@ -139,7 +139,7 @@ int main()
 			std::cout << "option name MIN_IID_DEPTH_REMAINING type spin default 6 min 0 max " << MAX_DEPTH << std::endl;
 			std::cout << "option name IID_DEPTH_REDUCTION type spin default 3 min 0 max 10" << std::endl;
 
-			std::cout << "option name MIN_CHECK_EXTENSION_DEPTH_REMAINING type spin default 1 min 0 max " << MAX_DEPTH << std::endl;
+			std::cout << "option name MIN_CHECK_EXTENSION_DEPTH_REMAINING type spin default 2 min 0 max " << MAX_DEPTH << std::endl;
 			std::cout << "option name MAX_CHECK_EXTENSIONS type spin default 2 min 0 max 10" << std::endl;
 
 			std::cout << "uciok" << std::endl;
@@ -164,8 +164,12 @@ int main()
 					value = stoi(tokens[i + 1]);
 			}
 
-			*option_map[name] = value;
-			init_LAR_table();
+			auto it = option_map.find(name);
+			if (it != option_map.end())
+			{
+				*it->second = value;
+				init_LAR_table();
+			}
 		}
 		else if (input == "ucinewgame")
 		{

@@ -692,7 +692,7 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 
 			int history = history_heuristic[color][from][to];
 			reduction -= history / HISTORY_REDUCTION_DIVISOR;
-			if (history < -HEURISTIC_REDUCTION_THRESHOLD)
+			if (!is_killer && history < -HEURISTIC_REDUCTION_THRESHOLD)
 				++reduction;
 			else if (history > HEURISTIC_REDUCTION_THRESHOLD)
 				--reduction;
@@ -709,7 +709,7 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 			if (continuation_values_2)
 				continuation += (*continuation_values_2)[moving_piece][to];
 			reduction -= continuation / CONTINUATION_REDUCTION_DIVISOR;
-			if (continuation < -HEURISTIC_REDUCTION_THRESHOLD)
+			if (!is_killer && continuation < -HEURISTIC_REDUCTION_THRESHOLD)
 				++reduction;
 			else if (continuation > HEURISTIC_REDUCTION_THRESHOLD)
 				--reduction;
@@ -1087,7 +1087,7 @@ uint16_t get_best_action(const board& chess_board, action_list& legal_actions, c
 				<< " nps " << nps
 				<< " time " << total_elapsed_ms
 				<< " hashfull " << tt.hashfull()
-				//<< " pv " << pv_string
+				<< " pv " << pv_string
 				<< std::endl;
 		}
 		else
@@ -1098,7 +1098,7 @@ uint16_t get_best_action(const board& chess_board, action_list& legal_actions, c
 				<< " nps " << nps
 				<< " time " << total_elapsed_ms
 				<< " hashfull " << tt.hashfull()
-				//<< " pv " << pv_string
+				<< " pv " << pv_string
 				<< std::endl;
 		}
 

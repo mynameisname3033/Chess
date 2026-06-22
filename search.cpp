@@ -422,7 +422,8 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 		negamax(chess_board, net, depth_remaining - IID_DEPTH_REDUCTION, alpha, beta, depth, prev_action_1, prev_piece_1, prev_action_2, prev_piece_2, check_extensions);
 		entry = tt.probe(key);
 		tt_hit = entry && !entry->is_quiescence;
-		if (tt_hit) {
+		if (tt_hit)
+		{
 			tt_score = entry->score;
 			tt_action = entry->best_action;
 			tt_depth = entry->depth_remaining;

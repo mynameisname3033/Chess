@@ -15,6 +15,7 @@ struct go_params
 	int nodes = -1;
 
 	bool infinite = false;
+	bool ponder = false;
 };
 
 void set_position(board& chess_board, const std::string& command);

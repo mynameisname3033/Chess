@@ -5,7 +5,11 @@
 #include <cstdint>
 #include <string>
 #include <string.h>
+#include <sstream>
 #include <tuple>
+#include <atomic>
+#include <thread>
+#include <mutex>
 #include "search.h"
 #include "action_generator.h"
 #include "transposition_table.h"
@@ -39,6 +43,55 @@ static uint64_t nodes = 0;
 static bool search_aborted;
 static std::chrono::steady_clock::time_point search_start_time;
 static int search_hard_limit_ms;
+
+static std::atomic<bool> g_stop { false };
+static std::atomic<bool> g_ponder { false };
+static int real_hard_limit_ms;
+static bool was_pondering;
+static uint16_t ponder_action;
+
+static std::mutex output_mutex;
+
+void uci_send(const std::string& line)
+{
+	std::lock_guard<std::mutex> lock(output_mutex);
+	std::cout << line << std::endl;
+}
+
+void prepare_search(bool ponder)
+{
+	g_stop.store(false);
+	g_ponder.store(ponder);
+}
+
+void stop_search() { g_stop.store(true); }
+void ponderhit() { g_ponder.store(false); }
+uint16_t get_ponder_action() { return ponder_action; }
+
+static __forceinline void check_ponder_transition()
+{
+	if (was_pondering && !g_ponder.load(std::memory_order_relaxed))
+	{
+		was_pondering = false;
+		search_start_time = std::chrono::steady_clock::now();
+		search_hard_limit_ms = real_hard_limit_ms;
+	}
+}
+
+static __forceinline bool should_abort()
+{
+	if (g_stop.load(std::memory_order_relaxed))
+		return true;
+
+	if (g_ponder.load(std::memory_order_relaxed))
+		return false;
+
+	check_ponder_transition();
+
+	auto now = std::chrono::steady_clock::now();
+	auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - search_start_time).count();
+	return elapsed >= search_hard_limit_ms;
+}
 
 void reset_engine()
 {
@@ -177,15 +230,10 @@ static __forceinline int SEE(const board& chess_board, uint16_t action)
 
 static int quiescence(const board& chess_board, const NNUE& net, int alpha, int beta, int relative_depth, int absolute_depth, uint16_t prev_action_1, int prev_piece_1, uint16_t prev_action_2, int prev_piece_2)
 {
-	if (!(++nodes & 8191))
+	if (!(++nodes & 8191) && should_abort())
 	{
-		auto now = std::chrono::steady_clock::now();
-		auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - search_start_time).count();
-		if (elapsed >= search_hard_limit_ms)
-		{
-			search_aborted = true;
-			return 0;
-		}
+		search_aborted = true;
+		return 0;
 	}
 
 	if (chess_board.is_draw())
@@ -375,15 +423,10 @@ static int quiescence(const board& chess_board, const NNUE& net, int alpha, int 
 
 static int negamax(const board& chess_board, const NNUE& net, int depth_remaining, int alpha, int beta, int depth, uint16_t prev_action_1, int prev_piece_1, uint16_t prev_action_2, int prev_piece_2, int check_extensions = 0, uint16_t excluded_action = 0)
 {
-	if (!(++nodes & 8191))
+	if (!(++nodes & 8191) && should_abort())
 	{
-		auto now = std::chrono::steady_clock::now();
-		auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - search_start_time).count();
-		if (elapsed >= search_hard_limit_ms)
-		{
-			search_aborted = true;
-			return 0;
-		}
+		search_aborted = true;
+		return 0;
 	}
 
 	if (chess_board.is_draw())
@@ -458,6 +501,9 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 
 				for (int pv_depth = depth + 1; pv_depth < MAX_DEPTH; ++pv_depth)
 				{
+					if (temp_board.is_draw())
+						break;
+
 					const TTEntry* pv_entry = tt.probe(temp_board.hash);
 					if (!pv_entry || pv_entry->is_quiescence || pv_entry->best_action == 0)
 						break;
@@ -888,8 +934,16 @@ uint16_t get_best_action(const board& chess_board, action_list& legal_actions, c
 {
 	age_heuristics();
 
+	was_pondering = params.ponder;
+	pv_length[0] = 0;
+	ponder_action = 0;
+
 	if (legal_actions.count == 1)
+	{
+		while (g_ponder.load() && !g_stop.load())
+			std::this_thread::sleep_for(std::chrono::milliseconds(1));
 		return legal_actions.actions[0];
+	}
 
 	NNUE net;
 	net.build_accumulator(chess_board);
@@ -902,6 +956,7 @@ uint16_t get_best_action(const board& chess_board, action_list& legal_actions, c
 
 	int extreme_search_hard_limit_ms = std::get<0>(search_times);
 	search_hard_limit_ms = extreme_search_hard_limit_ms;
+	real_hard_limit_ms = extreme_search_hard_limit_ms;
 	int search_soft_limit_ms = std::get<1>(search_times);
 	bool only_use_hard_limit = std::get<2>(search_times);
 
@@ -1074,6 +1129,8 @@ uint16_t get_best_action(const board& chess_board, action_list& legal_actions, c
 		best_score = current_best_score;
 		best_action = current_best_action;
 
+		ponder_action = pv_length[0] >= 2 ? pv_table[0][1] : 0;
+
 		uint64_t nps = 0;
 		if (total_elapsed_ms > 0)
 			nps = nodes * 1000 / total_elapsed_ms;
@@ -1087,44 +1144,51 @@ uint16_t get_best_action(const board& chess_board, action_list& legal_actions, c
 			temp_pv_board.make_action(pv_table[0][i]);
 		}
 
+		std::ostringstream info;
+		info << "info depth " << depth;
+
 		if (abs(best_score) > MATE_THRESHOLD)
 		{
 			int mate_in = (INF - abs(best_score) + 1) / 2;
 			if (best_score < 0) mate_in = -mate_in;
-
-			std::cout << "info depth " << depth
-				<< " score mate " << mate_in
-				<< " nodes " << nodes
-				<< " nps " << nps
-				<< " time " << total_elapsed_ms
-				<< " hashfull " << tt.hashfull()
-				<< " pv " << pv_string
-				<< std::endl;
+			info << " score mate " << mate_in;
 		}
 		else
 		{
-			std::cout << "info depth " << depth
-				<< " score cp " << best_score
-				<< " nodes " << nodes
-				<< " nps " << nps
-				<< " time " << total_elapsed_ms
-				<< " hashfull " << tt.hashfull()
-				<< " pv " << pv_string
-				<< std::endl;
+			info << " score cp " << best_score;
 		}
+
+		info << " nodes " << nodes
+			<< " nps " << nps
+			<< " time " << total_elapsed_ms
+			<< " hashfull " << tt.hashfull()
+			<< " pv " << pv_string;
+
+		uci_send(info.str());
 
 		time_factor *= 1.0f - 0.02f * std::min(best_action_stability, 5);
 		time_factor = std::max(time_factor, 0.4f);
 		int adjusted_soft_limit = (int)(search_soft_limit_ms * time_factor);
 
+		check_ponder_transition();
+
+		if (g_ponder.load())
+			continue;
+
 		if (params.depth != -1 && depth >= params.depth || params.nodes != -1 && nodes >= params.nodes)
 			break;
 
+		auto limit_now = std::chrono::steady_clock::now();
+		long elapsed_for_limit = std::chrono::duration_cast<std::chrono::milliseconds>(limit_now - search_start_time).count();
+
 		search_hard_limit_ms = only_use_hard_limit ? search_hard_limit_ms : std::min(extreme_search_hard_limit_ms, adjusted_soft_limit * 2);
 		int effective_soft_limit = only_use_hard_limit ? search_hard_limit_ms : adjusted_soft_limit;
-		if (total_elapsed_ms >= effective_soft_limit)
+		if (elapsed_for_limit >= effective_soft_limit)
 			break;
 	}
+
+	while (g_ponder.load() && !g_stop.load())
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
 	if (best_action == 0)
 		return legal_actions.actions[0];

@@ -93,6 +93,9 @@ go_params parse_go_command(const std::string& input)
 
 		else if (t == "infinite")
 			params.infinite = true;
+
+		else if (t == "ponder")
+			params.ponder = true;
 	}
 
 	return params;

@@ -62,14 +62,14 @@ struct NNUE
 
 			switch (castling_right_index)
 			{
-			case 0:
-				return CASTLING_BASE + 2;
-			case 1:
-				return CASTLING_BASE + 3;
-			case 2:
-				return CASTLING_BASE + 0;
-			default:
-				return CASTLING_BASE + 1;
+				case 0:
+					return CASTLING_BASE + 2;
+				case 1:
+					return CASTLING_BASE + 3;
+				case 2:
+					return CASTLING_BASE + 0;
+				default:
+					return CASTLING_BASE + 1;
 			}
 		}
 

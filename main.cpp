@@ -3,6 +3,7 @@
 #include <string>
 #include <sstream>
 #include <vector>
+#include <thread>
 #include "action_generator.h"
 #include "board.h"
 #include "action.h"
@@ -103,12 +104,25 @@ int main()
 
 	std::string input;
 
+	std::thread search_thread;
+
+	auto join_search = [&search_thread]()
+	{
+		if (search_thread.joinable())
+		{
+			stop_search();
+			search_thread.join();
+		}
+	};
+
 	while (std::getline(std::cin, input))
 	{
 		if (input == "uci")
 		{
 			std::cout << "id name MyEngine" << std::endl;
 			std::cout << "id author Akhil" << std::endl;
+
+			std::cout << "option name Ponder type check default false" << std::endl;
 
 			std::cout << "option name MAX_THINKING_TIME_MS type spin default 15000 min 0 max 10000000" << std::endl;
 			std::cout << "option name MIN_THINKING_TIME_MS type spin default 5 min 0 max 10000000" << std::endl;
@@ -146,14 +160,16 @@ int main()
 		}
 		else if (input == "isready")
 		{
-			std::cout << "readyok" << std::endl;
+			uci_send("readyok");
 		}
 		else if (input.rfind("setoption", 0) == 0)
 		{
+			join_search();
+
 			std::vector<std::string> tokens = split(input);
 
 			std::string name;
-			int value = 0;
+			std::string value_str;
 
 			for (int i = 0; i < tokens.size(); i++)
 			{
@@ -161,43 +177,72 @@ int main()
 					name = tokens[i + 1];
 
 				if (tokens[i] == "value" && i + 1 < tokens.size())
-					value = stoi(tokens[i + 1]);
+					value_str = tokens[i + 1];
 			}
 
 			auto it = option_map.find(name);
 			if (it != option_map.end())
 			{
-				*it->second = value;
-				init_LAR_table();
+				try
+				{
+					*it->second = std::stoi(value_str);
+					init_LAR_table();
+				}
+				catch (...) {}
 			}
 		}
 		else if (input == "ucinewgame")
 		{
+			join_search();
+
 			chess_board.load_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 			reset_engine();
 		}
 		else if (input.rfind("position", 0) == 0)
 		{
+			join_search();
+
 			set_position(chess_board, input);
 		}
 		else if (input.rfind("go", 0) == 0)
 		{
+			join_search();
+
 			action_list legal_actions = generate_legal_actions(chess_board);
 
 			if (legal_actions.count == 0)
 			{
-				std::cout << "bestmove 0000" << std::endl;
+				uci_send("bestmove 0000");
 				continue;
 			}
 
 			go_params params = parse_go_command(input);
-			uint16_t best = get_best_action(chess_board, legal_actions, params);
-			std::string best_str = action_to_string(best, chess_board.side_to_move);
 
-			std::cout << "bestmove " << best_str << std::endl;
+			prepare_search(params.ponder);
+
+			search_thread = std::thread([&chess_board, legal_actions, params]() mutable
+			{
+				uint16_t best = get_best_action(chess_board, legal_actions, params);
+
+				std::string out = "bestmove " + action_to_string(best, 0);
+				uint16_t ponder = get_ponder_action();
+				if (ponder != 0)
+					out += " ponder " + action_to_string(ponder, 0);
+
+				uci_send(out);
+			});
+		}
+		else if (input == "stop")
+		{
+			join_search();
+		}
+		else if (input == "ponderhit")
+		{
+			ponderhit();
 		}
 		else if (input == "quit")
 		{
+			join_search();
 			break;
 		}
 	}

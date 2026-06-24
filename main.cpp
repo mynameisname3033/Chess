@@ -9,6 +9,7 @@
 #include "action.h"
 #include "init.h"
 #include "search.h"
+#include "nnue.h"
 #include "zobrist_hash.h"
 #include "uci_communicator.h"
 #include "parameters.h"
@@ -69,7 +70,7 @@ static std::vector<std::string> split(const std::string& s)
 
 int main()
 {
-	init_parameters("C:/Users/akhil/c++/repos/Chess/nn_train/nnue_params8.bin");
+	init_parameters("C:/Users/akhil/c++/repos/Chess/nn_train/nnue_params8_q.bin");
 	init_zobrist_rng();
 	init_action_generator();
 	init_LAR_table();
@@ -164,6 +165,12 @@ int main()
 		else if (input == "isready")
 		{
 			uci_send("readyok");
+		}
+		else if (input == "eval")
+		{
+			NNUE net;
+			net.build_accumulator(chess_board);
+			std::cout << "eval " << net.forward(chess_board.side_to_move) << std::endl;
 		}
 		else if (input.rfind("setoption", 0) == 0)
 		{

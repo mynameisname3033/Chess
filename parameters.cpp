@@ -2,6 +2,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <cstdint>
 #include <string>
 #include <iostream>
 #ifdef _MSC_VER
@@ -9,9 +10,9 @@
 #endif
 #include "parameters.h"
 
-alignas(32) float* __restrict embeddings = nullptr;
-alignas(32) float* __restrict fc1_w = nullptr;
-alignas(32) float* __restrict fc1_b = nullptr;
+alignas(32) int16_t* __restrict embeddings = nullptr;
+alignas(32) int8_t* __restrict fc1_w = nullptr;
+alignas(32) int32_t* __restrict fc1_b = nullptr;
 alignas(32) float* __restrict fc2_w = nullptr;
 alignas(32) float* __restrict fc2_b = nullptr;
 alignas(32) float* __restrict fc3_w = nullptr;
@@ -26,15 +27,15 @@ void init_parameters(const std::string& filename)
 		exit(1);
 	}
 
-	embeddings = (float*)_mm_malloc(sizeof(float) * EMBEDDINGS * EMBEDDING_DIM, 32);
-	fc1_w = (float*)_mm_malloc(sizeof(float) * H1 * INPUT, 32);
-	fc1_b = (float*)_mm_malloc(sizeof(float) * H1, 32);
+	embeddings = (int16_t*)_mm_malloc(sizeof(int16_t) * EMBEDDINGS * EMBEDDING_DIM, 32);
+	fc1_w = (int8_t*)_mm_malloc(sizeof(int8_t) * H1 * INPUT, 32);
+	fc1_b = (int32_t*)_mm_malloc(sizeof(int32_t) * H1, 32);
 	fc2_w = (float*)_mm_malloc(sizeof(float) * H2 * H1, 32);
 	fc2_b = (float*)_mm_malloc(sizeof(float) * H2, 32);
 	fc3_w = (float*)_mm_malloc(sizeof(float) * OUTPUT * H2, 32);
 	fc3_b = (float*)_mm_malloc(sizeof(float) * OUTPUT, 32);
 
-	auto check = [&](int expected, int got)
+	auto check = [&](size_t expected, size_t got)
 	{
 		if (expected != got)
 		{
@@ -43,9 +44,9 @@ void init_parameters(const std::string& filename)
 		}
 	};
 
-	check(EMBEDDINGS * EMBEDDING_DIM, fread(embeddings, sizeof(float), EMBEDDINGS * EMBEDDING_DIM, f));
-	check(H1 * INPUT, fread(fc1_w, sizeof(float), H1 * INPUT, f));
-	check(H1, fread(fc1_b, sizeof(float), H1, f));
+	check(EMBEDDINGS * EMBEDDING_DIM, fread(embeddings, sizeof(int16_t), EMBEDDINGS * EMBEDDING_DIM, f));
+	check(H1 * INPUT, fread(fc1_w, sizeof(int8_t), H1 * INPUT, f));
+	check(H1, fread(fc1_b, sizeof(int32_t), H1, f));
 	check(H2 * H1, fread(fc2_w, sizeof(float), H2 * H1, f));
 	check(H2, fread(fc2_b, sizeof(float), H2, f));
 	check(OUTPUT * H2, fread(fc3_w, sizeof(float), OUTPUT * H2, f));

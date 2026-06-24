@@ -1177,8 +1177,8 @@ uint16_t get_best_action(const board& chess_board, action_list& legal_actions, c
 		info << " nodes " << nodes
 			<< " nps " << nps
 			<< " time " << total_elapsed_ms
-			<< " hashfull " << tt.hashfull();
-			//<< " pv " << pv_string;
+			<< " hashfull " << tt.hashfull()
+			<< " pv " << pv_string;
 
 		uci_send(info.str());
 

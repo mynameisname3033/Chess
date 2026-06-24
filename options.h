@@ -49,6 +49,9 @@ extern int SE_MARGIN_MULTIPLIER;
 extern int SE_REDUCTION_BASE;
 extern int SE_REUCTION_DIVISOR;
 
+extern int RAZOR_MAX_DEPTH_REMAINING;
+extern int RAZOR_MARGIN;
+
 extern int MIN_IID_DEPTH_REMAINING;
 extern int IID_DEPTH_REDUCTION;
 

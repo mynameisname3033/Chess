@@ -17,7 +17,7 @@ static inline constexpr int CASTLING_BASE = EMBEDDINGS - 4;
 struct NNUE
 {
 	private:
-		alignas(32) float accumulator[COLOR_NB][INPUT];
+		alignas(32) int16_t accumulator[COLOR_NB][EMBEDDING_DIM];
 
 		static __forceinline float hsum_ps_avx(__m256 v)
 		{
@@ -75,47 +75,27 @@ struct NNUE
 
 		__forceinline void add_embedding(int perspective, int index)
 		{
-			const float* __restrict row = embeddings + index * EMBEDDING_DIM;
+			const int16_t* __restrict row = embeddings + index * EMBEDDING_DIM;
+			int16_t* __restrict acc = accumulator[perspective];
 
-			for (int i = 0; i + 32 <= EMBEDDING_DIM; i += 32)
+			for (int i = 0; i < EMBEDDING_DIM; i += 16)
 			{
-				__m256 a0 = _mm256_load_ps(accumulator[perspective] + i + 0);
-				__m256 a1 = _mm256_load_ps(accumulator[perspective] + i + 8);
-				__m256 a2 = _mm256_load_ps(accumulator[perspective] + i + 16);
-				__m256 a3 = _mm256_load_ps(accumulator[perspective] + i + 24);
-
-				__m256 b0 = _mm256_load_ps(row + i + 0);
-				__m256 b1 = _mm256_load_ps(row + i + 8);
-				__m256 b2 = _mm256_load_ps(row + i + 16);
-				__m256 b3 = _mm256_load_ps(row + i + 24);
-
-				_mm256_store_ps(accumulator[perspective] + i + 0, _mm256_add_ps(a0, b0));
-				_mm256_store_ps(accumulator[perspective] + i + 8, _mm256_add_ps(a1, b1));
-				_mm256_store_ps(accumulator[perspective] + i + 16, _mm256_add_ps(a2, b2));
-				_mm256_store_ps(accumulator[perspective] + i + 24, _mm256_add_ps(a3, b3));
+				__m256i a = _mm256_load_si256((const __m256i*)(acc + i));
+				__m256i b = _mm256_load_si256((const __m256i*)(row + i));
+				_mm256_store_si256((__m256i*)(acc + i), _mm256_add_epi16(a, b));
 			}
 		}
 
 		__forceinline void sub_embedding(int perspective, int index)
 		{
-			const float* __restrict row = embeddings + index * EMBEDDING_DIM;
+			const int16_t* __restrict row = embeddings + index * EMBEDDING_DIM;
+			int16_t* __restrict acc = accumulator[perspective];
 
-			for (int i = 0; i + 32 <= EMBEDDING_DIM; i += 32)
+			for (int i = 0; i < EMBEDDING_DIM; i += 16)
 			{
-				__m256 a0 = _mm256_load_ps(accumulator[perspective] + i + 0);
-				__m256 a1 = _mm256_load_ps(accumulator[perspective] + i + 8);
-				__m256 a2 = _mm256_load_ps(accumulator[perspective] + i + 16);
-				__m256 a3 = _mm256_load_ps(accumulator[perspective] + i + 24);
-
-				__m256 b0 = _mm256_load_ps(row + i + 0);
-				__m256 b1 = _mm256_load_ps(row + i + 8);
-				__m256 b2 = _mm256_load_ps(row + i + 16);
-				__m256 b3 = _mm256_load_ps(row + i + 24);
-
-				_mm256_store_ps(accumulator[perspective] + i + 0, _mm256_sub_ps(a0, b0));
-				_mm256_store_ps(accumulator[perspective] + i + 8, _mm256_sub_ps(a1, b1));
-				_mm256_store_ps(accumulator[perspective] + i + 16, _mm256_sub_ps(a2, b2));
-				_mm256_store_ps(accumulator[perspective] + i + 24, _mm256_sub_ps(a3, b3));
+				__m256i a = _mm256_load_si256((const __m256i*)(acc + i));
+				__m256i b = _mm256_load_si256((const __m256i*)(row + i));
+				_mm256_store_si256((__m256i*)(acc + i), _mm256_sub_epi16(a, b));
 			}
 		}
 
@@ -156,104 +136,79 @@ struct NNUE
 	public:
 		__forceinline int forward(int color) const
 		{
+			const int16_t* __restrict us = accumulator[color];
+			const int16_t* __restrict them = accumulator[color ^ 1];
+
+			const __m256i zero = _mm256_setzero_si256();
+			const __m256i qa = _mm256_set1_epi16((short)QA);
+
 			alignas(32) float h1[H1];
-			alignas(32) float h2[H2];
 
-			const float* __restrict us_input = accumulator[color];
-			const float* __restrict them_input = accumulator[color ^ 1];
-
-			const __m256 zero256 = _mm256_setzero_ps();
-			const __m256 ones256 = _mm256_set1_ps(1.0f);
-			const __m128 zero128 = _mm_setzero_ps();
+			// FC1: SCReLU(acc)·w in integer. SCReLU = clamp(acc,0,QA)^2 (computed via
+			// (clamp*w) then madd with clamp). Per-lane int32 accumulation is safe
+			// (<=48 terms * 16.5M < 2^31); the final horizontal sum widens to int64.
+			const float fc1_dequant = 1.0f / (float)((int64_t)QA * QA * QB);
 
 			for (int o = 0; o < H1; o += 4)
 			{
-				_mm_prefetch((const char*)(fc1_w + (o + 4) * INPUT), _MM_HINT_T0);
-				_mm_prefetch((const char*)(fc1_w + (o + 5) * INPUT), _MM_HINT_T0);
+				const int8_t* __restrict w0 = fc1_w + (o + 0) * INPUT;
+				const int8_t* __restrict w1 = fc1_w + (o + 1) * INPUT;
+				const int8_t* __restrict w2 = fc1_w + (o + 2) * INPUT;
+				const int8_t* __restrict w3 = fc1_w + (o + 3) * INPUT;
 
-				__m256 sums[4];
-				for (int i = 0; i < 4; ++i)
+				__m256i a0 = _mm256_setzero_si256();
+				__m256i a1 = _mm256_setzero_si256();
+				__m256i a2 = _mm256_setzero_si256();
+				__m256i a3 = _mm256_setzero_si256();
+
+				for (int half = 0; half < 2; ++half)
 				{
-					sums[i] = zero256;
+					const int16_t* __restrict in = half == 0 ? us : them;
+					int off = half * EMBEDDING_DIM;
+
+					for (int i = 0; i < EMBEDDING_DIM; i += 16)
+					{
+						// SCReLU activation, shared across the 4 outputs.
+						__m256i c = _mm256_min_epi16(_mm256_max_epi16(_mm256_load_si256((const __m256i*)(in + i)), zero), qa);
+
+						a0 = _mm256_add_epi32(a0, _mm256_madd_epi16(_mm256_mullo_epi16(c, _mm256_cvtepi8_epi16(_mm_loadu_si128((const __m128i*)(w0 + off + i)))), c));
+						a1 = _mm256_add_epi32(a1, _mm256_madd_epi16(_mm256_mullo_epi16(c, _mm256_cvtepi8_epi16(_mm_loadu_si128((const __m128i*)(w1 + off + i)))), c));
+						a2 = _mm256_add_epi32(a2, _mm256_madd_epi16(_mm256_mullo_epi16(c, _mm256_cvtepi8_epi16(_mm_loadu_si128((const __m128i*)(w2 + off + i)))), c));
+						a3 = _mm256_add_epi32(a3, _mm256_madd_epi16(_mm256_mullo_epi16(c, _mm256_cvtepi8_epi16(_mm_loadu_si128((const __m128i*)(w3 + off + i)))), c));
+					}
 				}
 
-				for (int i = 0; i < EMBEDDING_DIM; i += 8)
+				__m256i acc[4] = { a0, a1, a2, a3 };
+				for (int k = 0; k < 4; ++k)
 				{
-					__m256 raw_in = _mm256_load_ps(us_input + i);
+					__m256i s64 = _mm256_add_epi64(
+						_mm256_cvtepi32_epi64(_mm256_castsi256_si128(acc[k])),
+						_mm256_cvtepi32_epi64(_mm256_extracti128_si256(acc[k], 1)));
+					__m128i s = _mm_add_epi64(_mm256_castsi256_si128(s64), _mm256_extracti128_si256(s64, 1));
+					int64_t sum = (int64_t)_mm_cvtsi128_si64(s) + (int64_t)_mm_extract_epi64(s, 1) + fc1_b[o + k];
 
-					__m256 clamped = _mm256_min_ps(_mm256_max_ps(raw_in, zero256), ones256);
-					__m256 activated_in = _mm256_mul_ps(clamped, clamped);
-
-					sums[0] = _mm256_fmadd_ps(activated_in, _mm256_load_ps(fc1_w + (o + 0) * INPUT + i), sums[0]);
-					sums[1] = _mm256_fmadd_ps(activated_in, _mm256_load_ps(fc1_w + (o + 1) * INPUT + i), sums[1]);
-					sums[2] = _mm256_fmadd_ps(activated_in, _mm256_load_ps(fc1_w + (o + 2) * INPUT + i), sums[2]);
-					sums[3] = _mm256_fmadd_ps(activated_in, _mm256_load_ps(fc1_w + (o + 3) * INPUT + i), sums[3]);
+					float out1 = (float)sum * fc1_dequant;
+					h1[o + k] = out1 > 0.0f ? out1 : 0.0f;
 				}
-
-				for (int i = 0; i < EMBEDDING_DIM; i += 8)
-				{
-					__m256 raw_in = _mm256_load_ps(them_input + i);
-
-					__m256 clamped = _mm256_min_ps(_mm256_max_ps(raw_in, zero256), ones256);
-					__m256 activated_in = _mm256_mul_ps(clamped, clamped);
-
-					sums[0] = _mm256_fmadd_ps(activated_in, _mm256_load_ps(fc1_w + (o + 0) * INPUT + EMBEDDING_DIM + i), sums[0]);
-					sums[1] = _mm256_fmadd_ps(activated_in, _mm256_load_ps(fc1_w + (o + 1) * INPUT + EMBEDDING_DIM + i), sums[1]);
-					sums[2] = _mm256_fmadd_ps(activated_in, _mm256_load_ps(fc1_w + (o + 2) * INPUT + EMBEDDING_DIM + i), sums[2]);
-					sums[3] = _mm256_fmadd_ps(activated_in, _mm256_load_ps(fc1_w + (o + 3) * INPUT + EMBEDDING_DIM + i), sums[3]);
-				}
-
-				float temp[4];
-				for (int i = 0; i < 4; ++i)
-				{
-					temp[i] = hsum_ps_avx(sums[i]) + fc1_b[o + i];
-				}
-				__m128 out = _mm_loadu_ps(temp);
-				__m128 relu = _mm_max_ps(out, zero128);
-				_mm_store_ps(&h1[o], relu);
 			}
 
-			for (int o = 0; o < H2; o += 4)
+			// FC2 / FC3 in float (tiny layers).
+			alignas(32) float h2[H2];
+			for (int o = 0; o < H2; ++o)
 			{
-				_mm_prefetch((const char*)(fc2_w + (o + 4) * H1), _MM_HINT_T0);
-				_mm_prefetch((const char*)(fc2_w + (o + 5) * H1), _MM_HINT_T0);
-
-				__m256 sums[4];
-				for (int i = 0; i < 4; ++i)
-				{
-					sums[i] = zero256;
-				}
-
-				for (int i = 0; i < H1; i += 8)
-				{
-					__m256 in = _mm256_load_ps(h1 + i);
-					sums[0] = _mm256_fmadd_ps(in, _mm256_load_ps(fc2_w + (o + 0) * H1 + i), sums[0]);
-					sums[1] = _mm256_fmadd_ps(in, _mm256_load_ps(fc2_w + (o + 1) * H1 + i), sums[1]);
-					sums[2] = _mm256_fmadd_ps(in, _mm256_load_ps(fc2_w + (o + 2) * H1 + i), sums[2]);
-					sums[3] = _mm256_fmadd_ps(in, _mm256_load_ps(fc2_w + (o + 3) * H1 + i), sums[3]);
-				}
-
-				float temp[4];
-				for (int i = 0; i < 4; ++i)
-				{
-					temp[i] = hsum_ps_avx(sums[i]) + fc2_b[o + i];
-				}
-				__m128 out = _mm_loadu_ps(temp);
-				__m128 relu = _mm_max_ps(out, zero128);
-				_mm_store_ps(&h2[o], relu);
+				float s = fc2_b[o];
+				const float* __restrict w = fc2_w + o * H1;
+				for (int i = 0; i < H1; ++i)
+					s += w[i] * h1[i];
+				h2[o] = s > 0.0f ? s : 0.0f;
 			}
 
-			__m256 final_sum = zero256;
-			for (int i = 0; i < H2; i += 8)
-			{
-				__m256 v_w = _mm256_load_ps(fc3_w + i);
-				__m256 v_h = _mm256_load_ps(h2 + i);
-				final_sum = _mm256_fmadd_ps(v_w, v_h, final_sum);
-			}
+			float out = fc3_b[0];
+			for (int i = 0; i < H2; ++i)
+				out += fc3_w[i] * h2[i];
 
-			float raw = hsum_ps_avx(final_sum) + fc3_b[0];
-			raw = fminf(fmaxf(raw, -0.999999f), 0.999999f);
-			return (int)(atanh(raw) * 400.0f);
+			out = fminf(fmaxf(out, -0.999999f), 0.999999f);
+			return (int)(atanh(out) * 400.0f);
 		}
 
 		__forceinline void build_accumulator(const board& chess_board)
@@ -383,9 +338,9 @@ struct NNUE
 
 			for (int perspective = 0; perspective < COLOR_NB; ++perspective)
 			{
-				for (int i = 0; i < INPUT; ++i)
+				for (int i = 0; i < EMBEDDING_DIM; ++i)
 				{
-					if (abs(accumulator[perspective][i] - temp.accumulator[perspective][i]) > 1e-6)
+					if (accumulator[perspective][i] != temp.accumulator[perspective][i])
 					{
 						std::cout << "Mismatch at perspective " << perspective << " index " << i << ": " << accumulator[perspective][i] << " vs " << temp.accumulator[perspective][i] << std::endl;
 						return;

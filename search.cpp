@@ -570,7 +570,7 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 			return 0;
 	}
 
-	if (!root_is_pv && !root_in_check && excluded_action == 0 && RAZOR_MAX_DEPTH_REMAINING > 0 && depth_remaining <= RAZOR_MAX_DEPTH_REMAINING)
+	if (!root_is_pv && !root_in_check && excluded_action == 0 && depth_remaining <= RAZOR_MAX_DEPTH_REMAINING)
 	{
 		if (!eval_is_computed)
 		{
@@ -1177,8 +1177,8 @@ uint16_t get_best_action(const board& chess_board, action_list& legal_actions, c
 		info << " nodes " << nodes
 			<< " nps " << nps
 			<< " time " << total_elapsed_ms
-			<< " hashfull " << tt.hashfull();
-			//<< " pv " << pv_string;
+			<< " hashfull " << tt.hashfull()
+			<< " pv " << pv_string;
 
 		uci_send(info.str());
 

@@ -570,7 +570,7 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 			return 0;
 	}
 
-	if (!root_is_pv && !root_in_check && excluded_action == 0 && depth_remaining <= RAZOR_MAX_DEPTH_REMAINING)
+	if (!root_is_pv && !root_in_check && excluded_action == 0 && depth_remaining <= MAX_RAZOR_DEPTH_REMAINING)
 	{
 		if (!eval_is_computed)
 		{

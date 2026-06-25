@@ -15,6 +15,20 @@ extern int MAX_THINKING_TIME_MS;
 extern int MIN_THINKING_TIME_MS;
 extern int TIME_DIVISOR;
 
+extern int NODE_TM_BASE;
+extern int NODE_TM_SCALE;
+extern int NODE_TM_MIN;
+extern int NODE_TM_MAX;
+
+extern int INC_FRACTION;
+extern int HARD_LIMIT_MULTIPLIER;
+extern int INSTABILITY_DIVISOR;
+extern int MAX_INSTABILITY_FACTOR;
+extern int STABILITY_DECREMENT;
+extern int MAX_STABILITY_STEPS;
+extern int MIN_TIME_FACTOR;
+extern int SOFT_TO_HARD_MULTIPLIER;
+
 extern int MIN_LAR_INDEX;
 extern int MIN_LAR_DEPTH_REMAINING;
 extern int LAR_REDUCTION_DIVISOR;

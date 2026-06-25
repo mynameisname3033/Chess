@@ -623,7 +623,11 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 
 		int singular_depth = (depth_remaining - SE_REDUCTION_BASE) / SE_REUCTION_DIVISOR;
 		int singular_score = negamax(chess_board, net, singular_depth, singular_beta - 1, singular_beta, depth, prev_action_1, prev_piece_1, prev_action_2, prev_piece_2, check_extensions, tt_action);
-		if (singular_score < singular_beta)
+		if (singular_score < singular_beta - 300)
+		{
+			extension = 2;
+		}
+		else if (singular_score < singular_beta)
 		{
 			extension = 1;
 		}

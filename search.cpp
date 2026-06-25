@@ -942,12 +942,12 @@ static __forceinline std::tuple<int, int, bool> choose_search_times(const go_par
 		return { MIN_THINKING_TIME_MS, MIN_THINKING_TIME_MS, true };
 
 	time_left_ms -= MIN_THINKING_TIME_MS;
-	int thinking_time_ms = time_left_ms / TIME_DIVISOR + inc_ms * 0.75f;
+	int thinking_time_ms = time_left_ms / TIME_DIVISOR + inc_ms * (INC_FRACTION / 100.0f);
 
 	thinking_time_ms = std::min(thinking_time_ms, MAX_THINKING_TIME_MS);
 	thinking_time_ms = std::max(thinking_time_ms, MIN_THINKING_TIME_MS);
 
-	return { thinking_time_ms * 2.5f, thinking_time_ms, false };
+	return { (int)(thinking_time_ms * (HARD_LIMIT_MULTIPLIER / 100.0f)), thinking_time_ms, false };
 }
 
 uint16_t get_best_action(const board& chess_board, action_list& legal_actions, const go_params& params)
@@ -1003,8 +1003,14 @@ uint16_t get_best_action(const board& chess_board, action_list& legal_actions, c
 
 		int window = ASPIRATION_WINDOW;
 
+		uint64_t best_action_nodes = 0;
+		uint64_t pass_start_nodes = nodes;
+
 		while (true)
 		{
+			pass_start_nodes = nodes;
+			best_action_nodes = 0;
+
 			uint16_t priority_action = current_best_action != 0 ? current_best_action : (best_action != 0 ? best_action : (entry ? entry->best_action : 0));
 			action_picker picker(legal_actions, priority_action);
 
@@ -1076,6 +1082,8 @@ uint16_t get_best_action(const board& chess_board, action_list& legal_actions, c
 
 				int score;
 
+				uint64_t action_start_nodes = nodes;
+
 				if (i == 0)
 				{
 					score = -negamax(temp_board, temp_net, depth - 1, -search_beta, -search_alpha, 1, action, moving_piece, 0, 0);
@@ -1097,6 +1105,7 @@ uint16_t get_best_action(const board& chess_board, action_list& legal_actions, c
 				{
 					current_best_score = score;
 					current_best_action = action;
+					best_action_nodes = nodes - action_start_nodes;
 
 					pv_table[0][0] = action;
 					for (int pv_i = 1; pv_i < pv_length[1]; ++pv_i)
@@ -1143,7 +1152,7 @@ uint16_t get_best_action(const board& chess_board, action_list& legal_actions, c
 			++reset_instability;
 
 			float search_completed_factor = (float)total_elapsed_ms / search_soft_limit_ms;
-			time_factor = std::min(1.0f + (search_completed_factor / 5.0f) * reset_instability, 1.5f);
+			time_factor = std::min(1.0f + (search_completed_factor / (float)INSTABILITY_DIVISOR) * reset_instability, MAX_INSTABILITY_FACTOR / 100.0f);
 		}
 
 		best_score = current_best_score;
@@ -1186,9 +1195,21 @@ uint16_t get_best_action(const board& chess_board, action_list& legal_actions, c
 
 		uci_send(info.str());
 
-		time_factor *= 1.0f - 0.02f * std::min(best_action_stability, 5);
-		time_factor = std::max(time_factor, 0.4f);
+		time_factor *= 1.0f - (STABILITY_DECREMENT / 100.0f) * std::min(best_action_stability, MAX_STABILITY_STEPS);
+		time_factor = std::max(time_factor, MIN_TIME_FACTOR / 100.0f);
 		int adjusted_soft_limit = (int)(search_soft_limit_ms * time_factor);
+
+		if (!only_use_hard_limit)
+		{
+			uint64_t total_pass_nodes = nodes - pass_start_nodes;
+			if (total_pass_nodes > 0 && best_action_nodes > 0)
+			{
+				double effort = (double)best_action_nodes / (double)total_pass_nodes;
+				double node_factor = (NODE_TM_BASE - NODE_TM_SCALE * effort) / 100.0;
+				node_factor = std::clamp(node_factor, NODE_TM_MIN / 100.0, NODE_TM_MAX / 100.0);
+				adjusted_soft_limit = (int)(adjusted_soft_limit * node_factor);
+			}
+		}
 
 		check_ponder_transition();
 
@@ -1201,7 +1222,7 @@ uint16_t get_best_action(const board& chess_board, action_list& legal_actions, c
 		auto limit_now = std::chrono::steady_clock::now();
 		long elapsed_for_limit = std::chrono::duration_cast<std::chrono::milliseconds>(limit_now - search_start_time).count();
 
-		search_hard_limit_ms = only_use_hard_limit ? search_hard_limit_ms : std::min(extreme_search_hard_limit_ms, adjusted_soft_limit * 2);
+		search_hard_limit_ms = only_use_hard_limit ? search_hard_limit_ms : std::min(extreme_search_hard_limit_ms, adjusted_soft_limit * SOFT_TO_HARD_MULTIPLIER);
 		int effective_soft_limit = only_use_hard_limit ? search_hard_limit_ms : adjusted_soft_limit;
 		if (elapsed_for_limit >= effective_soft_limit)
 			break;

@@ -157,6 +157,33 @@ int main()
 			std::cout << "option name MIN_CHECK_EXTENSION_DEPTH_REMAINING type spin default 2 min 0 max " << MAX_DEPTH << std::endl;
 			std::cout << "option name MAX_CHECK_EXTENSIONS type spin default 2 min 0 max 10" << std::endl;
 
+			std::cout << "option name NODE_TM_BASE type spin default 152 min 0 max 400" << std::endl;
+			std::cout << "option name NODE_TM_SCALE type spin default 120 min 0 max 400" << std::endl;
+			std::cout << "option name NODE_TM_MIN type spin default 60 min 1 max 400" << std::endl;
+			std::cout << "option name NODE_TM_MAX type spin default 140 min 1 max 400" << std::endl;
+
+			std::cout << "option name INC_FRACTION type spin default 75 min 0 max 200" << std::endl;
+			std::cout << "option name HARD_LIMIT_MULTIPLIER type spin default 250 min 100 max 1000" << std::endl;
+			std::cout << "option name INSTABILITY_DIVISOR type spin default 5 min 1 max 100" << std::endl;
+			std::cout << "option name MAX_INSTABILITY_FACTOR type spin default 150 min 100 max 500" << std::endl;
+			std::cout << "option name STABILITY_DECREMENT type spin default 2 min 0 max 50" << std::endl;
+			std::cout << "option name MAX_STABILITY_STEPS type spin default 5 min 0 max 50" << std::endl;
+			std::cout << "option name MIN_TIME_FACTOR type spin default 40 min 1 max 100" << std::endl;
+			std::cout << "option name SOFT_TO_HARD_MULTIPLIER type spin default 2 min 1 max 10" << std::endl;
+
+			std::cout << "option name CONTINUATION_REDUCTION_DIVISOR type spin default 3000 min 1 max 100000" << std::endl;
+			std::cout << "option name HEURISTIC_REDUCTION_THRESHOLD type spin default 20 min 0 max 100000" << std::endl;
+
+			std::cout << "option name MAX_QUIESCENCE_DEPTH type spin default 30 min 0 max " << MAX_DEPTH << std::endl;
+			std::cout << "option name MAX_QUIET_QUIESCENCE_CHECK_DEPTH type spin default 2 min 0 max " << MAX_DEPTH << std::endl;
+
+			std::cout << "option name MIN_SE_DEPTH_REMAINING type spin default 8 min 0 max " << MAX_DEPTH << std::endl;
+			std::cout << "option name SE_DEPTH_REMAINING_MIN_REDUCTION type spin default 3 min 0 max 100" << std::endl;
+			std::cout << "option name SE_MARGIN_MULTIPLIER type spin default 2 min 0 max 1000" << std::endl;
+			std::cout << "option name SE_REDUCTION_BASE type spin default 1 min 0 max 100" << std::endl;
+			std::cout << "option name SE_REUCTION_DIVISOR type spin default 2 min 1 max 100" << std::endl;
+			std::cout << "option name SE_DOUBLE_EXTENSION_MARGIN type spin default 300 min 0 max 2000" << std::endl;
+
 			std::cout << "option name RAZOR_MAX_DEPTH_REMAINING type spin default 0 min 0 max " << MAX_DEPTH << std::endl;
 			std::cout << "option name RAZOR_MARGIN type spin default 300 min 0 max 2000" << std::endl;
 

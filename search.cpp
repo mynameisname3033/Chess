@@ -39,6 +39,9 @@ static uint16_t counteraction_heuristic_2[COLOR_NB][PIECE_NB][64];
 static int continuation_history_1[COLOR_NB][PIECE_NB][64][PIECE_NB][64];
 static int continuation_history_2[COLOR_NB][PIECE_NB][64][PIECE_NB][64];
 
+static constexpr int CORR_SIZE = 16384;
+static int correction_history[COLOR_NB][CORR_SIZE];
+
 static uint64_t nodes = 0;
 static bool search_aborted;
 static std::chrono::steady_clock::time_point search_start_time;
@@ -104,6 +107,8 @@ void reset_engine()
 
 	memset(continuation_history_1, 0, sizeof(continuation_history_1));
 	memset(continuation_history_2, 0, sizeof(continuation_history_2));
+
+	memset(correction_history, 0, sizeof(correction_history));
 }
 
 void init_LAR_table()
@@ -119,9 +124,16 @@ void init_LAR_table()
 	}
 }
 
-static __forceinline int get_static_eval(const NNUE& net, int color)
+static __forceinline int get_static_eval(const board& chess_board, const NNUE& net)
 {
+	int color = chess_board.side_to_move;
 	int score = (int)net.forward(color);
+
+	if (USE_CORRECTION_HISTORY)
+	{
+		int idx = chess_board.pawn_king_hash & (CORR_SIZE - 1);
+		score += correction_history[color][idx] / CORR_GRAIN;
+	}
 
 	score = std::min(score, MATE_THRESHOLD);
 	score = std::max(score, -MATE_THRESHOLD);
@@ -243,7 +255,7 @@ static int quiescence(const board& chess_board, const NNUE& net, int alpha, int 
 
 	if (absolute_depth >= MAX_QUIESCENCE_DEPTH)
 	{
-		return entry && entry->static_eval != -INF ? entry->static_eval : get_static_eval(net, chess_board.side_to_move);
+		return entry && entry->static_eval != -INF ? entry->static_eval : get_static_eval(chess_board, net);
 	}
 
 	bool can_search_checks = relative_depth <= MAX_QUIET_QUIESCENCE_CHECK_DEPTH;
@@ -275,7 +287,7 @@ static int quiescence(const board& chess_board, const NNUE& net, int alpha, int 
 	int alpha_orig = alpha;
 
 	bool root_in_check = is_square_attacked(chess_board, chess_board.king_square[color], color ^ 1);
-	int stand_pat = entry && entry->static_eval != -INF ? entry->static_eval : get_static_eval(net, color);
+	int stand_pat = entry && entry->static_eval != -INF ? entry->static_eval : get_static_eval(chess_board, net);
 
 	if (!root_in_check)
 	{
@@ -532,7 +544,7 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 	{
 		if (!eval_is_computed)
 		{
-			static_eval = get_static_eval(net, color);
+			static_eval = get_static_eval(chess_board, net);
 			eval_is_computed = true;
 		}
 
@@ -574,7 +586,7 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 	{
 		if (!eval_is_computed)
 		{
-			static_eval = get_static_eval(net, color);
+			static_eval = get_static_eval(chess_board, net);
 			eval_is_computed = true;
 		}
 
@@ -590,7 +602,7 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 	{
 		if (!eval_is_computed)
 		{
-			static_eval = get_static_eval(net, color);
+			static_eval = get_static_eval(chess_board, net);
 			eval_is_computed = true;
 		}
 
@@ -607,7 +619,7 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 	{
 		if (!eval_is_computed)
 		{
-			static_eval = get_static_eval(net, color);
+			static_eval = get_static_eval(chess_board, net);
 			eval_is_computed = true;
 		}
 
@@ -884,6 +896,32 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 		flag = LOWERBOUND;
 	else
 		flag = EXACT;
+
+	// Correction history: learn the residual between the static eval used at this node and the
+	// search result, but only for trustworthy signals (not in check, quiet best move, non-mate,
+	// and a bound consistent with the residual's direction).
+	if (USE_CORRECTION_HISTORY && excluded_action == 0 && !root_in_check && eval_is_computed && abs(best_score) < MATE_THRESHOLD)
+	{
+		bool best_is_tactical = false;
+		if (best_action != 0)
+		{
+			int b_to = to_sq(best_action);
+			int b_flags = flags(best_action);
+			best_is_tactical = chess_board.squares[b_to] != 0xFF || b_flags == EN_PASSANT || is_promo(b_flags);
+		}
+
+		if (!best_is_tactical
+			&& (flag == EXACT
+				|| (flag == LOWERBOUND && best_score > static_eval)
+				|| (flag == UPPERBOUND && best_score < static_eval)))
+		{
+			int idx = chess_board.pawn_king_hash & (CORR_SIZE - 1);
+			int diff = best_score - static_eval;
+			int bonus = std::clamp(diff * depth_remaining / CORR_WEIGHT, -CORR_MAX / 4, CORR_MAX / 4);
+			int& c = correction_history[color][idx];
+			c += bonus - c * abs(bonus) / CORR_MAX;
+		}
+	}
 
 	int16_t tt_score_store = best_score;
 	if (tt_score_store > MATE_THRESHOLD)

@@ -24,6 +24,7 @@ struct board
 	uint64_t occupied[COLOR_NB];
 	uint8_t squares[64];
 	uint64_t hash;
+	uint64_t pawn_king_hash;
 
 	uint64_t repetition_stack[128];
 	int repetition_idx;
@@ -127,6 +128,19 @@ struct board
 			en_passant_square = rank * 8 + file;
 		}
 
+		pawn_king_hash = 0;
+		for (int c = 0; c < COLOR_NB; ++c)
+		{
+			uint64_t pawns = pieces[c][PAWN];
+			while (pawns)
+			{
+				int sq = (int)_tzcnt_u64(pawns);
+				pawns &= pawns - 1;
+				pawn_king_hash ^= zobrist_piece[c][PAWN][sq];
+			}
+			pawn_king_hash ^= zobrist_piece[c][KING][king_square[c]];
+		}
+
 		hash = zobrist_hash(*this);
 
 		repetition_idx = 0;
@@ -160,6 +174,12 @@ struct board
 		hash ^= zobrist_piece[color][piece][from];
 		hash ^= zobrist_piece[color][piece][to];
 
+		if (piece == PAWN || piece == KING)
+		{
+			pawn_king_hash ^= zobrist_piece[color][piece][from];
+			pawn_king_hash ^= zobrist_piece[color][piece][to];
+		}
+
 		uint8_t full_captured_piece = squares[to];
 		if (full_captured_piece != 0xFF)
 		{
@@ -170,6 +190,9 @@ struct board
 			occupied[captured_color] &= ~to_mask;
 
 			hash ^= zobrist_piece[captured_color][captured_piece][to];
+
+			if (captured_piece == PAWN)
+				pawn_king_hash ^= zobrist_piece[captured_color][PAWN][to];
 
 			if (captured_piece == ROOK)
 			{
@@ -215,6 +238,8 @@ struct board
 				hash ^= zobrist_piece[color][PAWN][to];
 				hash ^= zobrist_piece[color][promo][to];
 
+				pawn_king_hash ^= zobrist_piece[color][PAWN][to];
+
 				side_to_move ^= 1;
 
 				if (repetition_idx < 128)
@@ -241,6 +266,8 @@ struct board
 
 				squares[captured_pawn_square] = 0xFF;
 				hash ^= zobrist_piece[color ^ 1][PAWN][captured_pawn_square];
+
+				pawn_king_hash ^= zobrist_piece[color ^ 1][PAWN][captured_pawn_square];
 			}
 		}
 		else if (piece == KING)

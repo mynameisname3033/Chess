@@ -65,6 +65,14 @@ int IID_DEPTH_REDUCTION = 3;
 int MIN_CHECK_EXTENSION_DEPTH_REMAINING = 2;
 int MAX_CHECK_EXTENSIONS = 2;
 
+// Correction history: a slowly-learned adjustment to the static eval, bucketed by pawn-king
+// structure. bonus = diff * depth_remaining / CORR_WEIGHT (learning rate, larger = slower);
+// stored value is clamped to +/-CORR_MAX; applied correction = stored / CORR_GRAIN centipawns.
+int USE_CORRECTION_HISTORY = 1;
+int CORR_WEIGHT = 8;
+int CORR_GRAIN = 256;
+int CORR_MAX = 16384;
+
 int PIECE_VALUES[PIECE_NB] = { 100, 320, 330, 500, 975, 20000 };
 
 std::unordered_map<std::string, int*> option_map =
@@ -114,6 +122,11 @@ std::unordered_map<std::string, int*> option_map =
 
 	{"MIN_CHECK_EXTENSION_DEPTH_REMAINING", &MIN_CHECK_EXTENSION_DEPTH_REMAINING},
 	{"MAX_CHECK_EXTENSIONS", &MAX_CHECK_EXTENSIONS},
+
+	{"USE_CORRECTION_HISTORY", &USE_CORRECTION_HISTORY},
+	{"CORR_WEIGHT", &CORR_WEIGHT},
+	{"CORR_GRAIN", &CORR_GRAIN},
+	{"CORR_MAX", &CORR_MAX},
 
 	{"CONTINUATION_REDUCTION_DIVISOR", &CONTINUATION_REDUCTION_DIVISOR},
 	{"HEURISTIC_REDUCTION_THRESHOLD", &HEURISTIC_REDUCTION_THRESHOLD},

@@ -157,6 +157,11 @@ int main()
 			std::cout << "option name MIN_CHECK_EXTENSION_DEPTH_REMAINING type spin default 2 min 0 max " << MAX_DEPTH << std::endl;
 			std::cout << "option name MAX_CHECK_EXTENSIONS type spin default 2 min 0 max 10" << std::endl;
 
+			std::cout << "option name USE_CORRECTION_HISTORY type spin default 1 min 0 max 1" << std::endl;
+			std::cout << "option name CORR_WEIGHT type spin default 8 min 1 max 1024" << std::endl;
+			std::cout << "option name CORR_GRAIN type spin default 256 min 1 max 4096" << std::endl;
+			std::cout << "option name CORR_MAX type spin default 16384 min 1 max 1048576" << std::endl;
+
 			std::cout << "option name NODE_TM_BASE type spin default 152 min 0 max 400" << std::endl;
 			std::cout << "option name NODE_TM_SCALE type spin default 120 min 0 max 400" << std::endl;
 			std::cout << "option name NODE_TM_MIN type spin default 60 min 1 max 400" << std::endl;

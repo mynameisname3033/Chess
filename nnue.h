@@ -55,22 +55,39 @@ struct NNUE
 			return king_bucket * (11 * 64) + plane * 64 + actual_square;
 		}
 
-		static __forceinline int get_castling_embedding_index(int perspective, int castling_right_index)
+		static __forceinline bool perspective_mirror(uint8_t king_square, int perspective)
 		{
-			if (perspective == WHITE)
-				return CASTLING_BASE + castling_right_index;
+			int king_sq = (perspective == BLACK) ? (king_square ^ 56) : king_square;
+			return (king_sq & 7) >= 4;
+		}
 
-			switch (castling_right_index)
+		static __forceinline int get_castling_embedding_index(int perspective, int castling_right_index, bool mirror)
+		{
+			// Map the absolute right (0=wK,1=wQ,2=bK,3=bQ) to the perspective-relative slot
+			// (0=us-K, 1=us-Q, 2=them-K, 3=them-Q).
+			int slot;
+
+			if (perspective == WHITE)
 			{
-				case 0:
-					return CASTLING_BASE + 2;
-				case 1:
-					return CASTLING_BASE + 3;
-				case 2:
-					return CASTLING_BASE + 0;
-				default:
-					return CASTLING_BASE + 1;
+				slot = castling_right_index;
 			}
+			else
+			{
+				switch (castling_right_index)
+				{
+					case 0:  slot = 2; break;
+					case 1:  slot = 3; break;
+					case 2:  slot = 0; break;
+					default: slot = 1; break;
+				}
+			}
+
+			// Under the horizontal mirror, kingside and queenside swap within each pair
+			// (0<->1, 2<->3), matching the mirrored piece features. train.py does the same.
+			if (mirror)
+				slot ^= 1;
+
+			return CASTLING_BASE + slot;
 		}
 
 		__forceinline void add_embedding(int perspective, int index)
@@ -123,14 +140,14 @@ struct NNUE
 			}
 		}
 
-		__forceinline void add_castling_right(int perspective, int rights_index)
+		__forceinline void add_castling_right(int perspective, int rights_index, bool mirror)
 		{
-			add_embedding(perspective, get_castling_embedding_index(perspective, rights_index));
+			add_embedding(perspective, get_castling_embedding_index(perspective, rights_index, mirror));
 		}
 
-		__forceinline void remove_castling_right(int perspective, int rights_index)
+		__forceinline void remove_castling_right(int perspective, int rights_index, bool mirror)
 		{
-			sub_embedding(perspective, get_castling_embedding_index(perspective, rights_index));
+			sub_embedding(perspective, get_castling_embedding_index(perspective, rights_index, mirror));
 		}
 
 	public:
@@ -241,17 +258,19 @@ struct NNUE
 
 			for (int perspective = 0; perspective < COLOR_NB; ++perspective)
 			{
+				bool mirror = perspective_mirror(chess_board.king_square[perspective], perspective);
+
 				if (chess_board.castling_rights & CASTLE_WHITE_KINGSIDE_RIGHT)
-					add_castling_right(perspective, 0);
+					add_castling_right(perspective, 0, mirror);
 
 				if (chess_board.castling_rights & CASTLE_WHITE_QUEENSIDE_RIGHT)
-					add_castling_right(perspective, 1);
+					add_castling_right(perspective, 1, mirror);
 
 				if (chess_board.castling_rights & CASTLE_BLACK_KINGSIDE_RIGHT)
-					add_castling_right(perspective, 2);
+					add_castling_right(perspective, 2, mirror);
 
 				if (chess_board.castling_rights & CASTLE_BLACK_QUEENSIDE_RIGHT)
-					add_castling_right(perspective, 3);
+					add_castling_right(perspective, 3, mirror);
 			}
 		}
 
@@ -287,25 +306,30 @@ struct NNUE
 			{
 				for (int perspective = 0; perspective < COLOR_NB; ++perspective)
 				{
+					// Castling rights only change here when a rook moves/is captured (king moves
+					// trigger a full rebuild above), so the king square -- and thus the mirror --
+					// is identical in prev_board and new_board.
+					bool mirror = perspective_mirror(new_board.king_square[perspective], perspective);
+
 					if ((old_rights & CASTLE_WHITE_KINGSIDE_RIGHT) && !(new_rights & CASTLE_WHITE_KINGSIDE_RIGHT))
-						remove_castling_right(perspective, 0);
+						remove_castling_right(perspective, 0, mirror);
 					else if (!(old_rights & CASTLE_WHITE_KINGSIDE_RIGHT) && (new_rights & CASTLE_WHITE_KINGSIDE_RIGHT))
-						add_castling_right(perspective, 0);
+						add_castling_right(perspective, 0, mirror);
 
 					if ((old_rights & CASTLE_WHITE_QUEENSIDE_RIGHT) && !(new_rights & CASTLE_WHITE_QUEENSIDE_RIGHT))
-						remove_castling_right(perspective, 1);
+						remove_castling_right(perspective, 1, mirror);
 					else if (!(old_rights & CASTLE_WHITE_QUEENSIDE_RIGHT) && (new_rights & CASTLE_WHITE_QUEENSIDE_RIGHT))
-						add_castling_right(perspective, 1);
+						add_castling_right(perspective, 1, mirror);
 
 					if ((old_rights & CASTLE_BLACK_KINGSIDE_RIGHT) && !(new_rights & CASTLE_BLACK_KINGSIDE_RIGHT))
-						remove_castling_right(perspective, 2);
+						remove_castling_right(perspective, 2, mirror);
 					else if (!(old_rights & CASTLE_BLACK_KINGSIDE_RIGHT) && (new_rights & CASTLE_BLACK_KINGSIDE_RIGHT))
-						add_castling_right(perspective, 2);
+						add_castling_right(perspective, 2, mirror);
 
 					if ((old_rights & CASTLE_BLACK_QUEENSIDE_RIGHT) && !(new_rights & CASTLE_BLACK_QUEENSIDE_RIGHT))
-						remove_castling_right(perspective, 3);
+						remove_castling_right(perspective, 3, mirror);
 					else if (!(old_rights & CASTLE_BLACK_QUEENSIDE_RIGHT) && (new_rights & CASTLE_BLACK_QUEENSIDE_RIGHT))
-						add_castling_right(perspective, 3);
+						add_castling_right(perspective, 3, mirror);
 				}
 			}
 

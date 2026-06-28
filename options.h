@@ -73,7 +73,6 @@ extern int IID_DEPTH_REDUCTION;
 extern int MIN_CHECK_EXTENSION_DEPTH_REMAINING;
 extern int MAX_CHECK_EXTENSIONS;
 
-extern int USE_CORRECTION_HISTORY;
 extern int CORR_WEIGHT;
 extern int CORR_GRAIN;
 extern int CORR_MAX;

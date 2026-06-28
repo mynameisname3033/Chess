@@ -42,6 +42,8 @@ static int continuation_history_2[COLOR_NB][PIECE_NB][64][PIECE_NB][64];
 static constexpr int CORR_SIZE = 16384;
 static int correction_history[COLOR_NB][CORR_SIZE];
 
+static int max_seldepth = 0;
+
 static uint64_t nodes = 0;
 static bool search_aborted;
 static std::chrono::steady_clock::time_point search_start_time;
@@ -129,11 +131,8 @@ static __forceinline int get_static_eval(const board& chess_board, const NNUE& n
 	int color = chess_board.side_to_move;
 	int score = (int)net.forward(color);
 
-	if (USE_CORRECTION_HISTORY)
-	{
-		int idx = chess_board.pawn_king_hash & (CORR_SIZE - 1);
-		score += correction_history[color][idx] / CORR_GRAIN;
-	}
+	int idx = chess_board.pawn_king_hash & (CORR_SIZE - 1);
+	score += correction_history[color][idx] / CORR_GRAIN;
 
 	score = std::min(score, MATE_THRESHOLD);
 	score = std::max(score, -MATE_THRESHOLD);
@@ -242,6 +241,11 @@ static __forceinline int SEE(const board& chess_board, uint16_t action)
 
 static int quiescence(const board& chess_board, const NNUE& net, int alpha, int beta, int relative_depth, int absolute_depth, uint16_t prev_action_1, int prev_piece_1, uint16_t prev_action_2, int prev_piece_2)
 {
+	if (absolute_depth > max_seldepth)
+	{
+		max_seldepth = absolute_depth;
+	}
+
 	if (!(++nodes & 8191) && should_abort())
 	{
 		search_aborted = true;
@@ -435,6 +439,11 @@ static int quiescence(const board& chess_board, const NNUE& net, int alpha, int 
 
 static int negamax(const board& chess_board, const NNUE& net, int depth_remaining, int alpha, int beta, int depth, uint16_t prev_action_1, int prev_piece_1, uint16_t prev_action_2, int prev_piece_2, int check_extensions = 0, uint16_t excluded_action = 0)
 {
+	if (depth > max_seldepth)
+	{
+		max_seldepth = depth;
+	}
+
 	if (!(++nodes & 8191) && should_abort())
 	{
 		search_aborted = true;
@@ -897,10 +906,7 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 	else
 		flag = EXACT;
 
-	// Correction history: learn the residual between the static eval used at this node and the
-	// search result, but only for trustworthy signals (not in check, quiet best move, non-mate,
-	// and a bound consistent with the residual's direction).
-	if (USE_CORRECTION_HISTORY && excluded_action == 0 && !root_in_check && eval_is_computed && abs(best_score) < MATE_THRESHOLD)
+	if (excluded_action == 0 && !root_in_check && eval_is_computed && abs(best_score) < MATE_THRESHOLD)
 	{
 		bool best_is_tactical = false;
 		if (best_action != 0)
@@ -1032,6 +1038,8 @@ uint16_t get_best_action(const board& chess_board, action_list& legal_actions, c
 	{
 		uint64_t key = chess_board.hash;
 		const TTEntry* entry = tt.probe(key);
+
+		max_seldepth = 0;
 
 		int current_best_score = -INF;
 		uint16_t current_best_action = 0;
@@ -1212,7 +1220,8 @@ uint16_t get_best_action(const board& chess_board, action_list& legal_actions, c
 		}
 
 		std::ostringstream info;
-		info << "info depth " << depth;
+		info << "info depth " << depth
+			<< " seldepth " << max_seldepth;
 
 		if (abs(best_score) > MATE_THRESHOLD)
 		{

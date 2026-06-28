@@ -4,6 +4,7 @@
 #include <sstream>
 #include <vector>
 #include <thread>
+#include <chrono>
 #include "action_generator.h"
 #include "board.h"
 #include "action.h"
@@ -249,6 +250,48 @@ int main()
 		else if (input.rfind("go", 0) == 0)
 		{
 			join_search();
+
+			std::vector<std::string> go_tokens = split(input);
+
+			if (go_tokens.size() >= 2 && go_tokens[1] == "perft")
+			{
+				int depth;
+				try { depth = std::stoi(go_tokens.at(2)); }
+				catch (...) { continue; }
+
+				auto start = std::chrono::steady_clock::now();
+
+				uint64_t total = 0;
+
+				if (depth >= 1)
+				{
+					action_list perft_actions = generate_legal_actions(chess_board);
+					for (int i = 0; i < perft_actions.count; ++i)
+					{
+						uint16_t action = perft_actions.actions[i];
+
+						board temp = chess_board;
+						temp.make_action(action);
+
+						uint64_t n = perft(temp, depth - 1);
+						std::cout << action_to_string(action, 0) << ": " << n << std::endl;
+
+						total += n;
+					}
+				}
+				else
+				{
+					total = 1;
+				}
+
+				auto end = std::chrono::steady_clock::now();
+				long ms = (long)std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+
+				std::cout << "\nNodes searched: " << total << std::endl;
+				std::cout << "Time: " << ms << " ms" << std::endl;
+
+				continue;
+			}
 
 			action_list legal_actions = generate_legal_actions(chess_board);
 

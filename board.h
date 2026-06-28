@@ -129,16 +129,16 @@ struct board
 		}
 
 		pawn_king_hash = 0;
-		for (int c = 0; c < COLOR_NB; ++c)
+		for (int color = 0; color < COLOR_NB; ++color)
 		{
-			uint64_t pawns = pieces[c][PAWN];
+			uint64_t pawns = pieces[color][PAWN];
 			while (pawns)
 			{
 				int sq = (int)_tzcnt_u64(pawns);
 				pawns &= pawns - 1;
-				pawn_king_hash ^= zobrist_piece[c][PAWN][sq];
+				pawn_king_hash ^= zobrist_piece[color][PAWN][sq];
 			}
-			pawn_king_hash ^= zobrist_piece[c][KING][king_square[c]];
+			pawn_king_hash ^= zobrist_piece[color][KING][king_square[color]];
 		}
 
 		hash = zobrist_hash(*this);

@@ -80,27 +80,6 @@ int main()
 	board chess_board = {};
 	chess_board.load_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 
-	//chess_board.load_fen("5k1r/1p2n1p1/p1nB1pQ1/2N4p/2B5/1PP1P3/P2P1PPP/RN2K2R w KQ - 12 24");
-	//chess_board.load_fen("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8");
-	//chess_board.load_fen("8/2p5/8/KP1p2kr/5p2/8/4P1P1/6R1 w - - 0 1");
-	//chess_board.load_fen("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1");
-	//chess_board.load_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -");
-	//chess_board.load_fen("1k6/p4pp1/8/6n1/8/8/pK6/7q b - - 1 52");
-
-	//chess_board.load_fen("rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2");
-
-	//std::cout << chess_board.get_fen() << std::endl;
-	//chess_board.print(-1);
-
-	//auto start = std::chrono::steady_clock::now();
-
-	//uint64_t n_moves = perft_divide(chess_board, 5);
-
-	//auto end = std::chrono::steady_clock::now();
-	//auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
-	//std::cout << "Time taken: " << (duration.count() / 1000000) << " milliseconds" << std::endl;
-	//std::cout << "Total moves: " << n_moves << std::endl << std::endl;
-
 	std::ios::sync_with_stdio(false);
 	std::cin.tie(nullptr);
 

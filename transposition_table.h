@@ -18,8 +18,11 @@ struct alignas(16) TTEntry
 	int16_t static_eval;
 	uint8_t depth_remaining;
 	uint8_t flag : 2;
-	bool is_quiescence : 1;
+	uint8_t is_quiescence : 1;
+	uint8_t generation : 5;
 };
+
+static_assert(sizeof(TTEntry) == 16, "TTEntry must stay one quarter cache line");
 
 struct alignas(64) TTCluster
 {
@@ -35,7 +38,24 @@ struct transposition_table
 		uint64_t used = 0;
 		uint64_t total_slots = 0;
 
+		uint8_t current_generation = 0;
+
+		// Lower is more evictable: shallow and/or old. age wraps cleanly mod 32 even though the
+		// subtraction promotes to int (e.g. (0 - 31) & 31 == 1). With aging off this is pure depth.
+		__forceinline int replace_score(const TTEntry& e) const
+		{
+			int depth = e.is_quiescence ? -1 : e.depth_remaining;
+			int age = (current_generation - e.generation) & 31;
+			return depth - (USE_TT_AGING ? age * GEN_AGE_WEIGHT : 0);
+		}
+
 	public:
+
+		__forceinline void new_generation()
+		{
+			current_generation = (current_generation + 1) & 31;
+		}
+
 		transposition_table()
 		{
 			uint64_t cluster_count = 1;
@@ -66,7 +86,11 @@ struct transposition_table
 			for (int i = 0; i < CLUSTER_SIZE; ++i)
 			{
 				if (cluster.entries[i].key == key)
+				{
+					if (USE_TT_AGING)
+						cluster.entries[i].generation = current_generation;
 					return &cluster.entries[i];
+				}
 			}
 			return nullptr;
 		}
@@ -88,6 +112,7 @@ struct transposition_table
 			if (target_index != -1)
 			{
 				TTEntry& e = cluster.entries[target_index];
+				e.generation = current_generation;
 				if (depth_remaining > e.depth_remaining || (e.is_quiescence && !is_quiescence) || (depth_remaining == e.depth_remaining && flag == EXACT))
 				{
 					if (best_action != 0)
@@ -119,14 +144,14 @@ struct transposition_table
 			if (target_index == -1)
 			{
 				target_index = 0;
-				int min_depth = cluster.entries[0].is_quiescence ? -1 : cluster.entries[0].depth_remaining;
+				int worst_score = replace_score(cluster.entries[0]);
 
 				for (int i = 1; i < CLUSTER_SIZE; ++i)
 				{
-					int current_depth = cluster.entries[i].is_quiescence ? -1 : cluster.entries[i].depth_remaining;
-					if (current_depth < min_depth)
+					int s = replace_score(cluster.entries[i]);
+					if (s < worst_score)
 					{
-						min_depth = current_depth;
+						worst_score = s;
 						target_index = i;
 					}
 				}
@@ -140,6 +165,7 @@ struct transposition_table
 			e.depth_remaining = depth_remaining;
 			e.flag = flag & 0x03;
 			e.is_quiescence = is_quiescence;
+			e.generation = current_generation;
 		}
 
 		__forceinline int hashfull() const
@@ -151,5 +177,6 @@ struct transposition_table
 		{
 			std::memset(table, 0, sizeof(TTCluster) * (mask + 1));
 			used = 0;
+			current_generation = 0;
 		}
 	};

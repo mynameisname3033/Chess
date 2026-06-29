@@ -972,6 +972,7 @@ static __forceinline std::tuple<int, int, bool> choose_search_times(const go_par
 uint16_t get_best_action(const board& chess_board, action_list& legal_actions, const go_params& params)
 {
 	age_heuristics();
+	tt.new_generation();
 
 	was_pondering = params.ponder;
 	pv_length[0] = 0;

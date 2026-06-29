@@ -77,6 +77,9 @@ extern int CORR_WEIGHT;
 extern int CORR_GRAIN;
 extern int CORR_MAX;
 
+extern int USE_TT_AGING;
+extern int GEN_AGE_WEIGHT;
+
 extern int PIECE_VALUES[PIECE_NB];
 
 extern std::unordered_map<std::string, int*> option_map;

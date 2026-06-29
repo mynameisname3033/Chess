@@ -69,6 +69,12 @@ int CORR_WEIGHT = 8;
 int CORR_GRAIN = 256;
 int CORR_MAX = 16384;
 
+// TT aging: prefer evicting entries from old search generations. Replacement score is
+// depth - age * GEN_AGE_WEIGHT (age = generations since the entry was last used). When
+// USE_TT_AGING is off, replacement reduces to pure depth-preferred (the prior behavior).
+int USE_TT_AGING = 1;
+int GEN_AGE_WEIGHT = 8;
+
 int PIECE_VALUES[PIECE_NB] = { 100, 320, 330, 500, 975, 20000 };
 
 std::unordered_map<std::string, int*> option_map =
@@ -122,6 +128,9 @@ std::unordered_map<std::string, int*> option_map =
 	{"CORR_WEIGHT", &CORR_WEIGHT},
 	{"CORR_GRAIN", &CORR_GRAIN},
 	{"CORR_MAX", &CORR_MAX},
+
+	{"USE_TT_AGING", &USE_TT_AGING},
+	{"GEN_AGE_WEIGHT", &GEN_AGE_WEIGHT},
 
 	{"CONTINUATION_REDUCTION_DIVISOR", &CONTINUATION_REDUCTION_DIVISOR},
 	{"HEURISTIC_REDUCTION_THRESHOLD", &HEURISTIC_REDUCTION_THRESHOLD},

@@ -508,35 +508,10 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 		++check_extensions;
 	}
 
-	if (tt_hit && tt_depth >= depth_remaining && excluded_action == 0)
+	if (tt_hit && tt_depth >= depth_remaining && excluded_action == 0 && !root_is_pv)
 	{
 		if (tt_bound == EXACT)
-		{
-			if (root_is_pv && tt_action != 0)
-			{
-				pv_table[depth][depth] = tt_action;
-				pv_length[depth] = depth + 1;
-
-				board temp_board = chess_board;
-				temp_board.make_action(tt_action);
-
-				for (int pv_depth = depth + 1; pv_depth < MAX_DEPTH; ++pv_depth)
-				{
-					if (temp_board.is_draw())
-						break;
-
-					const TTEntry* pv_entry = tt.probe(temp_board.hash);
-					if (!pv_entry || pv_entry->is_quiescence || pv_entry->best_action == 0)
-						break;
-
-					pv_table[depth][pv_depth] = pv_entry->best_action;
-					pv_length[depth] = pv_depth + 1;
-					temp_board.make_action(pv_entry->best_action);
-				}
-			}
-
 			return tt_score;
-		}
 		if (tt_bound == LOWERBOUND)
 			alpha = std::max(alpha, tt_score);
 		else if (tt_bound == UPPERBOUND)

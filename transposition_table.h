@@ -40,13 +40,11 @@ struct transposition_table
 
 		uint8_t current_generation = 0;
 
-		// Lower is more evictable: shallow and/or old. age wraps cleanly mod 32 even though the
-		// subtraction promotes to int (e.g. (0 - 31) & 31 == 1). With aging off this is pure depth.
 		__forceinline int replace_score(const TTEntry& e) const
 		{
 			int depth = e.is_quiescence ? -1 : e.depth_remaining;
 			int age = (current_generation - e.generation) & 31;
-			return depth - (USE_TT_AGING ? age * GEN_AGE_WEIGHT : 0);
+			return depth - (age * GEN_AGE_WEIGHT);
 		}
 
 	public:
@@ -87,8 +85,7 @@ struct transposition_table
 			{
 				if (cluster.entries[i].key == key)
 				{
-					if (USE_TT_AGING)
-						cluster.entries[i].generation = current_generation;
+					cluster.entries[i].generation = current_generation;
 					return &cluster.entries[i];
 				}
 			}

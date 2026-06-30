@@ -39,6 +39,8 @@ static uint16_t counteraction_heuristic_2[COLOR_NB][PIECE_NB][64];
 static int continuation_history_1[COLOR_NB][PIECE_NB][64][PIECE_NB][64];
 static int continuation_history_2[COLOR_NB][PIECE_NB][64][PIECE_NB][64];
 
+static int capture_history[COLOR_NB][PIECE_NB][64][PIECE_NB];
+
 static constexpr int CORR_SIZE = 16384;
 static int correction_history[COLOR_NB][CORR_SIZE];
 
@@ -109,6 +111,8 @@ void reset_engine()
 
 	memset(continuation_history_1, 0, sizeof(continuation_history_1));
 	memset(continuation_history_2, 0, sizeof(continuation_history_2));
+
+	memset(capture_history, 0, sizeof(capture_history));
 
 	memset(correction_history, 0, sizeof(correction_history));
 }
@@ -239,6 +243,16 @@ static __forceinline int SEE(const board& chess_board, uint16_t action)
 	return gain[0];
 }
 
+static __forceinline int capture_history_score(const board& chess_board, int color, uint16_t action)
+{
+	int from = from_sq(action);
+	int to = to_sq(action);
+	int moving_piece = full_piece_piece(chess_board.squares[from]);
+	int captured_piece = (flags(action) == EN_PASSANT) ? PAWN : full_piece_piece(chess_board.squares[to]);
+
+	return capture_history[color][moving_piece][to][captured_piece] / CAPTURE_HISTORY_SEE_SCORE_DIVISOR;
+}
+
 static int quiescence(const board& chess_board, const NNUE& net, int alpha, int beta, int relative_depth, int absolute_depth, uint16_t prev_action_1, int prev_piece_1, uint16_t prev_action_2, int prev_piece_2)
 {
 	if (absolute_depth > max_seldepth)
@@ -365,7 +379,7 @@ static int quiescence(const board& chess_board, const NNUE& net, int alpha, int 
 					if (score < 0)
 						scores[i] = -BIG_INF;
 					else
-						scores[i] = 800000 + score;
+						scores[i] = 800000 + score + capture_history_score(chess_board, color, current_action);
 				}
 				else if (current_action == counteraction_1)
 				{
@@ -677,9 +691,9 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 				{
 					int score = SEE(chess_board, current_action);
 					if (score < 0)
-						scores[i] = -10000 + score;
+						scores[i] = -10000 + score + capture_history_score(chess_board, color, current_action);
 					else
-						scores[i] = 800000 + score;
+						scores[i] = 800000 + score + capture_history_score(chess_board, color, current_action);
 				}
 				else if (current_action == killers[0]) { scores[i] = 700000; }
 				else if (current_action == killers[1]) { scores[i] = 700000 - 1; }
@@ -761,12 +775,6 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 			else if (history > HEURISTIC_REDUCTION_THRESHOLD)
 				--reduction;
 
-			if (is_pv)
-				--reduction;
-
-			if (gives_check)
-				--reduction;
-
 			int continuation = 0;
 			if (continuation_values_1)
 				continuation += (*continuation_values_1)[moving_piece][to];
@@ -776,6 +784,23 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 			if (!is_killer && continuation < -HEURISTIC_REDUCTION_THRESHOLD)
 				++reduction;
 			else if (continuation > HEURISTIC_REDUCTION_THRESHOLD)
+				--reduction;
+
+			if (is_capture && !is_promo(action_flags))
+			{
+				int captured_piece = (action_flags == EN_PASSANT) ? PAWN : full_piece_piece(captured);
+				int capture = capture_history[color][moving_piece][to][captured_piece];
+				reduction -= capture / CAPTURE_REDUCTION_DIVISOR;
+				if (capture < -HEURISTIC_REDUCTION_THRESHOLD)
+					++reduction;
+				else if (capture > HEURISTIC_REDUCTION_THRESHOLD)
+					--reduction;
+			}
+
+			if (is_pv)
+				--reduction;
+
+			if (gives_check)
 				--reduction;
 
 			int search_depth = new_depth - std::max(0, std::min(reduction, new_depth));
@@ -849,6 +874,13 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 				if (counteraction_2)
 					*counteraction_2 = action;
 			}
+			else if (is_capture && !is_promo(action_flags))
+			{
+				int bonus = depth_remaining * depth_remaining;
+				int captured_piece = (action_flags == EN_PASSANT) ? PAWN : full_piece_piece(captured);
+				int& capture_value = capture_history[color][moving_piece][to][captured_piece];
+				capture_value += bonus - (capture_value * abs(bonus)) / MAX_HEURISTIC_VALUE;
+			}
 
 			break;
 		}
@@ -871,6 +903,13 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 				continuation_value += -penalty - (continuation_value * abs(penalty)) / MAX_HEURISTIC_VALUE;
 			}
 		}
+		else if (is_capture && !is_promo(action_flags) && !raised_alpha)
+		{
+			int penalty = depth_remaining;
+			int captured_piece = (action_flags == EN_PASSANT) ? PAWN : full_piece_piece(captured);
+			int& capture_value = capture_history[color][moving_piece][to][captured_piece];
+			capture_value += -penalty - (capture_value * abs(penalty)) / MAX_HEURISTIC_VALUE;
+		}
 	}
 
 	uint8_t flag;
@@ -891,16 +930,13 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 			best_is_tactical = chess_board.squares[b_to] != 0xFF || b_flags == EN_PASSANT || is_promo(b_flags);
 		}
 
-		if (!best_is_tactical
-			&& (flag == EXACT
-				|| (flag == LOWERBOUND && best_score > static_eval)
-				|| (flag == UPPERBOUND && best_score < static_eval)))
+		if (!best_is_tactical && (flag == EXACT || (flag == LOWERBOUND && best_score > static_eval) || (flag == UPPERBOUND && best_score < static_eval)))
 		{
 			int idx = chess_board.pawn_king_hash & (CORR_SIZE - 1);
 			int diff = best_score - static_eval;
 			int bonus = std::clamp(diff * depth_remaining / CORR_WEIGHT, -CORR_MAX / 4, CORR_MAX / 4);
-			int& c = correction_history[color][idx];
-			c += bonus - c * abs(bonus) / CORR_MAX;
+			int& correction = correction_history[color][idx];
+			correction += bonus - correction * abs(bonus) / CORR_MAX;
 		}
 	}
 
@@ -939,6 +975,12 @@ static __forceinline void age_heuristics()
 			}
 		}
 	}
+
+	for (int color = 0; color < COLOR_NB; ++color)
+		for (int piece = 0; piece < PIECE_NB; ++piece)
+			for (int to = 0; to < 64; ++to)
+				for (int captured = 0; captured < PIECE_NB; ++captured)
+					capture_history[color][piece][to][captured] -= capture_history[color][piece][to][captured] >> 1;
 
 	memset(killer_actions, 0, sizeof(killer_actions));
 }
@@ -1078,9 +1120,9 @@ uint16_t get_best_action(const board& chess_board, action_list& legal_actions, c
 						{
 							int score = SEE(chess_board, current_action);
 							if (score < 0)
-								scores[i] = -10000 + score;
+								scores[i] = -10000 + score + capture_history_score(chess_board, color, current_action);
 							else
-								scores[i] = 800000 + score;
+								scores[i] = 800000 + score + capture_history_score(chess_board, color, current_action);
 						}
 						else
 						{

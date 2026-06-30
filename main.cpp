@@ -107,43 +107,7 @@ int main()
 
 			std::cout << "option name MAX_THINKING_TIME_MS type spin default 15000 min 0 max 10000000" << std::endl;
 			std::cout << "option name MIN_THINKING_TIME_MS type spin default 5 min 0 max 10000000" << std::endl;
-			std::cout << "option name TIME_DIVISOR type spin default 30 min 0 max 500" << std::endl;
-
-			std::cout << "option name MIN_LAR_INDEX type spin default 4 min 0 max 218" << std::endl;
-			std::cout << "option name MIN_LAR_DEPTH_REMAINING type spin default 3 min 0 max " << MAX_DEPTH << std::endl;
-			std::cout << "option name LAR_REDUCTION_DIVISOR type spin default 7 min 0 max 100" << std::endl;
-
-			std::cout << "option name MAX_HEURISTIC_VALUE type spin default 16384 min 0 max 1000000" << std::endl;
-			std::cout << "option name HISTORY_REDUCTION_DIVISOR type spin default 4000 min 0 max 100000" << std::endl;
-
-			std::cout << "option name BASE_LAP_INDEX type spin default 3 min 0 max 218" << std::endl;
-			std::cout << "option name MAX_LAP_DEPTH_REMAINING type spin default 2 min 0 max " << MAX_DEPTH << std::endl;
-
-			std::cout << "option name ASPIRATION_WINDOW type spin default 35 min 5 max 500" << std::endl;
-
-			std::cout << "option name MAX_RFP_DEPTH_REMAINING type spin default 3 min 0 max " << MAX_DEPTH << std::endl;
-			std::cout << "option name RFP_MARGIN_MULTIPLIER type spin default 150 min -2500 max 2500" << std::endl;
-
-			std::cout << "option name MAX_FP_DEPTH_REMAINING type spin default 1 min 0 max " << MAX_DEPTH << std::endl;
-			std::cout << "option name FP_MARGIN_MULTIPLIER type spin default 150 min -2500 max 2500" << std::endl;
-
-			std::cout << "option name MIN_NULL_PRUNING_DEPTH_REMAINING type spin default 3 min 0 max " << MAX_DEPTH << std::endl;
-			std::cout << "option name BASE_NULL_PRUNING_VERIFICATION_REDUCTION type spin default 3 min 0 max 10" << std::endl;
-			std::cout << "option name NULL_PRUNING_VERIFICATION_REDUCTION_DIVISOR type spin default 6 min 0 max 100" << std::endl;
-
-			std::cout << "option name MIN_IID_DEPTH_REMAINING type spin default 6 min 0 max " << MAX_DEPTH << std::endl;
-			std::cout << "option name IID_DEPTH_REDUCTION type spin default 3 min 0 max 10" << std::endl;
-
-			std::cout << "option name MIN_CHECK_EXTENSION_DEPTH_REMAINING type spin default 2 min 0 max " << MAX_DEPTH << std::endl;
-			std::cout << "option name MAX_CHECK_EXTENSIONS type spin default 2 min 0 max 10" << std::endl;
-
-			std::cout << "option name USE_CORRECTION_HISTORY type spin default 1 min 0 max 1" << std::endl;
-			std::cout << "option name CORR_WEIGHT type spin default 8 min 1 max 1024" << std::endl;
-			std::cout << "option name CORR_GRAIN type spin default 256 min 1 max 4096" << std::endl;
-			std::cout << "option name CORR_MAX type spin default 16384 min 1 max 1048576" << std::endl;
-
-			std::cout << "option name USE_TT_AGING type spin default 1 min 0 max 1" << std::endl;
-			std::cout << "option name GEN_AGE_WEIGHT type spin default 8 min 0 max 256" << std::endl;
+			std::cout << "option name TIME_DIVISOR type spin default 30 min 1 max 500" << std::endl;
 
 			std::cout << "option name NODE_TM_BASE type spin default 152 min 0 max 400" << std::endl;
 			std::cout << "option name NODE_TM_SCALE type spin default 120 min 0 max 400" << std::endl;
@@ -159,21 +123,58 @@ int main()
 			std::cout << "option name MIN_TIME_FACTOR type spin default 40 min 1 max 100" << std::endl;
 			std::cout << "option name SOFT_TO_HARD_MULTIPLIER type spin default 2 min 1 max 10" << std::endl;
 
+			std::cout << "option name GEN_AGE_WEIGHT type spin default 8 min 0 max 256" << std::endl;
+
+			std::cout << "option name MIN_LAR_INDEX type spin default 4 min 0 max 218" << std::endl;
+			std::cout << "option name MIN_LAR_DEPTH_REMAINING type spin default 3 min 0 max " << MAX_DEPTH << std::endl;
+			std::cout << "option name LAR_REDUCTION_DIVISOR type spin default 7 min 1 max 100" << std::endl;
+
+			std::cout << "option name MAX_HEURISTIC_VALUE type spin default 16384 min 0 max 1000000" << std::endl;
+
+			std::cout << "option name HISTORY_REDUCTION_DIVISOR type spin default 4000 min 1 max 100000" << std::endl;
 			std::cout << "option name CONTINUATION_REDUCTION_DIVISOR type spin default 3000 min 1 max 100000" << std::endl;
+			std::cout << "option name CAPTURE_REDUCTION_DIVISOR type spin default 3000 min 1 max 100000" << std::endl;
 			std::cout << "option name HEURISTIC_REDUCTION_THRESHOLD type spin default 20 min 0 max 100000" << std::endl;
+
+			std::cout << "option name CAPTURE_HISTORY_SEE_SCORE_DIVISOR type spin default 16 min 1 max 4096" << std::endl;
+
+			std::cout << "option name CORR_WEIGHT type spin default 8 min 1 max 1024" << std::endl;
+			std::cout << "option name CORR_GRAIN type spin default 256 min 1 max 4096" << std::endl;
+			std::cout << "option name CORR_MAX type spin default 16384 min 1 max 1048576" << std::endl;
+
+			std::cout << "option name BASE_LAP_INDEX type spin default 3 min 0 max 218" << std::endl;
+			std::cout << "option name MAX_LAP_DEPTH_REMAINING type spin default 2 min 0 max " << MAX_DEPTH << std::endl;
+
+			std::cout << "option name ASPIRATION_WINDOW type spin default 35 min 5 max 500" << std::endl;
 
 			std::cout << "option name MAX_QUIESCENCE_DEPTH type spin default 30 min 0 max " << MAX_DEPTH << std::endl;
 			std::cout << "option name MAX_QUIET_QUIESCENCE_CHECK_DEPTH type spin default 2 min 0 max " << MAX_DEPTH << std::endl;
 
-			std::cout << "option name MIN_SE_DEPTH_REMAINING type spin default 8 min 0 max " << MAX_DEPTH << std::endl;
+			std::cout << "option name MAX_RFP_DEPTH_REMAINING type spin default 3 min 0 max " << MAX_DEPTH << std::endl;
+			std::cout << "option name RFP_MARGIN_MULTIPLIER type spin default 150 min -2500 max 2500" << std::endl;
+
+			std::cout << "option name MAX_FP_DEPTH_REMAINING type spin default 1 min 0 max " << MAX_DEPTH << std::endl;
+			std::cout << "option name FP_MARGIN_MULTIPLIER type spin default 150 min -2500 max 2500" << std::endl;
+
+			std::cout << "option name RAZOR_MAX_DEPTH_REMAINING type spin default 3 min 0 max " << MAX_DEPTH << std::endl;
+			std::cout << "option name RAZOR_MARGIN type spin default 300 min 0 max 2000" << std::endl;
+
+			std::cout << "option name MIN_NULL_PRUNING_DEPTH_REMAINING type spin default 3 min 0 max " << MAX_DEPTH << std::endl;
+			std::cout << "option name BASE_NULL_PRUNING_VERIFICATION_REDUCTION type spin default 3 min 0 max 10" << std::endl;
+			std::cout << "option name NULL_PRUNING_VERIFICATION_REDUCTION_DIVISOR type spin default 6 min 1 max 100" << std::endl;
+
+			std::cout << "option name MIN_SE_DEPTH_REMAINING type spin default 6 min 0 max " << MAX_DEPTH << std::endl;
 			std::cout << "option name SE_DEPTH_REMAINING_MIN_REDUCTION type spin default 3 min 0 max 100" << std::endl;
 			std::cout << "option name SE_MARGIN_MULTIPLIER type spin default 2 min 0 max 1000" << std::endl;
 			std::cout << "option name SE_REDUCTION_BASE type spin default 1 min 0 max 100" << std::endl;
 			std::cout << "option name SE_REUCTION_DIVISOR type spin default 2 min 1 max 100" << std::endl;
 			std::cout << "option name SE_DOUBLE_EXTENSION_MARGIN type spin default 300 min 0 max 2000" << std::endl;
 
-			std::cout << "option name RAZOR_MAX_DEPTH_REMAINING type spin default 0 min 0 max " << MAX_DEPTH << std::endl;
-			std::cout << "option name RAZOR_MARGIN type spin default 300 min 0 max 2000" << std::endl;
+			std::cout << "option name MIN_IID_DEPTH_REMAINING type spin default 6 min 0 max " << MAX_DEPTH << std::endl;
+			std::cout << "option name IID_DEPTH_REDUCTION type spin default 3 min 0 max 10" << std::endl;
+
+			std::cout << "option name MIN_CHECK_EXTENSION_DEPTH_REMAINING type spin default 2 min 0 max " << MAX_DEPTH << std::endl;
+			std::cout << "option name MAX_CHECK_EXTENSIONS type spin default 2 min 0 max 10" << std::endl;
 
 			std::cout << "uciok" << std::endl;
 		}

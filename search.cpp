@@ -408,6 +408,7 @@ static int quiescence(const board& chess_board, const NNUE& net, int alpha, int 
 			break;
 
 		int from = from_sq(action);
+
 		board temp_board = chess_board;
 		temp_board.make_action(action);
 
@@ -464,10 +465,10 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 		return 0;
 	}
 
-	pv_length[depth] = depth;
-
 	if (chess_board.is_draw())
 		return 0;
+
+	pv_length[depth] = depth;
 
 	if (depth >= MAX_DEPTH)
 		return quiescence(chess_board, net, alpha, beta, 1, depth, prev_action_1, prev_piece_1, prev_action_2, prev_piece_2);
@@ -786,16 +787,12 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 			else if (continuation > HEURISTIC_REDUCTION_THRESHOLD)
 				--reduction;
 
-			if (is_capture && !is_promo(action_flags))
-			{
-				int captured_piece = (action_flags == EN_PASSANT) ? PAWN : full_piece_piece(captured);
-				int capture = capture_history[color][moving_piece][to][captured_piece];
-				reduction -= capture / CAPTURE_REDUCTION_DIVISOR;
-				if (capture < -HEURISTIC_REDUCTION_THRESHOLD)
-					++reduction;
-				else if (capture > HEURISTIC_REDUCTION_THRESHOLD)
-					--reduction;
-			}
+			int capture = capture_history_score(chess_board, color, action);
+			reduction -= capture / CAPTURE_REDUCTION_DIVISOR;
+			if (!is_killer && capture < -HEURISTIC_REDUCTION_THRESHOLD)
+				++reduction;
+			else if (capture > HEURISTIC_REDUCTION_THRESHOLD)
+				--reduction;
 
 			if (is_pv)
 				--reduction;

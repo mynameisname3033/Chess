@@ -464,10 +464,10 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 		return 0;
 	}
 
+	pv_length[depth] = depth;
+
 	if (chess_board.is_draw())
 		return 0;
-
-	pv_length[depth] = depth;
 
 	if (depth >= MAX_DEPTH)
 		return quiescence(chess_board, net, alpha, beta, 1, depth, prev_action_1, prev_piece_1, prev_action_2, prev_piece_2);

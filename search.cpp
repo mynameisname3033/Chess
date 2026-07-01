@@ -791,7 +791,7 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 				int captured_piece = (action_flags == EN_PASSANT) ? PAWN : full_piece_piece(captured);
 				int capture = capture_history[color][moving_piece][to][captured_piece];
 				reduction -= capture / CAPTURE_REDUCTION_DIVISOR;
-				if (capture < -HEURISTIC_REDUCTION_THRESHOLD)
+				if (!is_killer && capture < -HEURISTIC_REDUCTION_THRESHOLD)
 					++reduction;
 				else if (capture > HEURISTIC_REDUCTION_THRESHOLD)
 					--reduction;

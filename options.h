@@ -37,6 +37,8 @@ extern int MIN_LAR_INDEX;
 extern int MIN_LAR_DEPTH_REMAINING;
 extern int LAR_REDUCTION_DIVISOR;
 
+extern int PV_DEPTH_ADDITION;
+
 extern int MAX_HEURISTIC_VALUE;
 
 extern int HISTORY_REDUCTION_DIVISOR;

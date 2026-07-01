@@ -798,7 +798,7 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 			}
 
 			if (is_pv)
-				--reduction;
+				reduction -= PV_DEPTH_ADDITION;
 
 			if (gives_check)
 				--reduction;

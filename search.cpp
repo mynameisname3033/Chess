@@ -41,7 +41,6 @@ static int continuation_history_2[COLOR_NB][PIECE_NB][64][PIECE_NB][64];
 
 static int capture_history[COLOR_NB][PIECE_NB][64][PIECE_NB];
 
-static constexpr int CORR_SIZE = 16384;
 static int correction_history[COLOR_NB][CORR_SIZE];
 
 static int max_seldepth = 0;
@@ -465,10 +464,10 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 		return 0;
 	}
 
+	pv_length[depth] = depth;
+
 	if (chess_board.is_draw())
 		return 0;
-
-	pv_length[depth] = depth;
 
 	if (depth >= MAX_DEPTH)
 		return quiescence(chess_board, net, alpha, beta, 1, depth, prev_action_1, prev_piece_1, prev_action_2, prev_piece_2);
@@ -787,12 +786,16 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 			else if (continuation > HEURISTIC_REDUCTION_THRESHOLD)
 				--reduction;
 
-			int capture = capture_history_score(chess_board, color, action);
-			reduction -= capture / CAPTURE_REDUCTION_DIVISOR;
-			if (!is_killer && capture < -HEURISTIC_REDUCTION_THRESHOLD)
-				++reduction;
-			else if (capture > HEURISTIC_REDUCTION_THRESHOLD)
-				--reduction;
+			if (is_capture && !is_promo(action_flags))
+			{
+				int captured_piece = (action_flags == EN_PASSANT) ? PAWN : full_piece_piece(captured);
+				int capture = capture_history[color][moving_piece][to][captured_piece];
+				reduction -= capture / CAPTURE_REDUCTION_DIVISOR;
+				if (capture < -HEURISTIC_REDUCTION_THRESHOLD)
+					++reduction;
+				else if (capture > HEURISTIC_REDUCTION_THRESHOLD)
+					--reduction;
+			}
 
 			if (is_pv)
 				--reduction;

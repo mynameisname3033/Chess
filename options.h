@@ -11,6 +11,8 @@ inline constexpr int BIG_INF = std::numeric_limits<int>::max();
 inline constexpr int INF = 32500;
 inline constexpr int MATE_THRESHOLD = 32000;
 
+inline constexpr int CORR_SIZE = 16384;
+
 extern int MAX_THINKING_TIME_MS;
 extern int MIN_THINKING_TIME_MS;
 extern int TIME_DIVISOR;

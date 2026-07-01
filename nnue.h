@@ -63,8 +63,6 @@ struct NNUE
 
 		static __forceinline int get_castling_embedding_index(int perspective, int castling_right_index, bool mirror)
 		{
-			// Map the absolute right (0=wK,1=wQ,2=bK,3=bQ) to the perspective-relative slot
-			// (0=us-K, 1=us-Q, 2=them-K, 3=them-Q).
 			int slot;
 
 			if (perspective == WHITE)
@@ -82,8 +80,6 @@ struct NNUE
 				}
 			}
 
-			// Under the horizontal mirror, kingside and queenside swap within each pair
-			// (0<->1, 2<->3), matching the mirrored piece features. train.py does the same.
 			if (mirror)
 				slot ^= 1;
 
@@ -161,9 +157,6 @@ struct NNUE
 
 			alignas(32) float h1[H1];
 
-			// FC1: SCReLU(acc)·w in integer. SCReLU = clamp(acc,0,QA)^2 (computed via
-			// (clamp*w) then madd with clamp). Per-lane int32 accumulation is safe
-			// (<=48 terms * 16.5M < 2^31); the final horizontal sum widens to int64.
 			const float fc1_dequant = 1.0f / (float)((int64_t)QA * QA * QB);
 
 			for (int o = 0; o < H1; o += 4)
@@ -185,7 +178,6 @@ struct NNUE
 
 					for (int i = 0; i < EMBEDDING_DIM; i += 16)
 					{
-						// SCReLU activation, shared across the 4 outputs.
 						__m256i c = _mm256_min_epi16(_mm256_max_epi16(_mm256_load_si256((const __m256i*)(in + i)), zero), qa);
 
 						a0 = _mm256_add_epi32(a0, _mm256_madd_epi16(_mm256_mullo_epi16(c, _mm256_cvtepi8_epi16(_mm_loadu_si128((const __m128i*)(w0 + off + i)))), c));
@@ -209,7 +201,6 @@ struct NNUE
 				}
 			}
 
-			// FC2 / FC3 in float (tiny layers).
 			alignas(32) float h2[H2];
 			for (int o = 0; o < H2; ++o)
 			{
@@ -306,9 +297,6 @@ struct NNUE
 			{
 				for (int perspective = 0; perspective < COLOR_NB; ++perspective)
 				{
-					// Castling rights only change here when a rook moves/is captured (king moves
-					// trigger a full rebuild above), so the king square -- and thus the mirror --
-					// is identical in prev_board and new_board.
 					bool mirror = perspective_mirror(new_board.king_square[perspective], perspective);
 
 					if ((old_rights & CASTLE_WHITE_KINGSIDE_RIGHT) && !(new_rights & CASTLE_WHITE_KINGSIDE_RIGHT))

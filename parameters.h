@@ -10,8 +10,6 @@ inline constexpr int H1 = 32;
 inline constexpr int H2 = 32;
 inline constexpr int OUTPUT = 1;
 
-// Quantization scales: QA = SCReLU clamp scale (accumulator / FT weights, int16),
-// QB = dense weight scale (FC1, int8). FC1 output is at scale QA*QA*QB.
 inline constexpr int QA = 255;
 inline constexpr int QB = 64;
 

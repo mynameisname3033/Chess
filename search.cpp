@@ -420,6 +420,9 @@ static int quiescence(const board& chess_board, const NNUE& net, int alpha, int 
 
 		int score = -quiescence(temp_board, temp_net, -beta, -alpha, relative_depth + 1, absolute_depth + 1, action, moving_piece, prev_action_1, prev_piece_1);
 
+		if (search_aborted)
+			return 0;
+
 		if (score > alpha)
 		{
 			alpha = score;
@@ -554,9 +557,16 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 			int reduction = BASE_NULL_PRUNING_VERIFICATION_REDUCTION + depth_remaining / NULL_PRUNING_VERIFICATION_REDUCTION_DIVISOR;
 			int score = -negamax(temp, net, std::max(depth_remaining - 1 - reduction, 0), -beta, -beta + 1, depth + 1, 0, 0, 0, 0, check_extensions);
 
+			if (search_aborted)
+				return 0;
+
 			if (score >= beta)
 			{
 				int verify = negamax(chess_board, net, depth_remaining - reduction, beta - 1, beta, depth, prev_action_1, prev_piece_1, prev_action_2, prev_piece_2, check_extensions);
+
+				if (search_aborted)
+					return 0;
+
 				if (verify >= beta)
 				{
 					tt.add(key, 0, beta, static_eval, depth_remaining, LOWERBOUND, false);
@@ -591,6 +601,10 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 		if (static_eval + RAZOR_MARGIN * depth_remaining <= alpha)
 		{
 			int razor_score = quiescence(chess_board, net, alpha, beta, 1, depth, prev_action_1, prev_piece_1, prev_action_2, prev_piece_2);
+
+			if (search_aborted)
+				return 0;
+
 			if (razor_score <= alpha)
 				return razor_score;
 		}
@@ -1000,7 +1014,7 @@ static __forceinline std::tuple<int, int, bool> choose_search_times(const go_par
 		return { 1000000000, 1000000000, true };
 
 	if (params.infinite)
-		return { MAX_THINKING_TIME_MS, MAX_THINKING_TIME_MS, true };
+		return { 1000000000, 1000000000, true };
 
 	if (params.movetime != -1)
 		return { params.movetime, params.movetime, true };
@@ -1031,7 +1045,7 @@ uint16_t get_best_action(const board& chess_board, action_list& legal_actions, c
 
 	if (legal_actions.count == 1)
 	{
-		while (g_ponder.load() && !g_stop.load())
+		while ((g_ponder.load() || params.infinite) && !g_stop.load())
 			std::this_thread::sleep_for(std::chrono::milliseconds(1));
 		return legal_actions.actions[0];
 	}
@@ -1174,6 +1188,9 @@ uint16_t get_best_action(const board& chess_board, action_list& legal_actions, c
 						score = -negamax(temp_board, temp_net, depth - 1, -search_beta, -search_alpha, 1, action, moving_piece, 0, 0);
 				}
 
+				if (search_aborted)
+					break;
+
 				if (score > current_best_score)
 				{
 					current_best_score = score;
@@ -1190,6 +1207,9 @@ uint16_t get_best_action(const board& chess_board, action_list& legal_actions, c
 
 				search_alpha = std::max(search_alpha, score);
 			}
+
+			if (search_aborted)
+				break;
 
 			if (current_best_score <= alpha_orig)
 			{
@@ -1302,7 +1322,7 @@ uint16_t get_best_action(const board& chess_board, action_list& legal_actions, c
 			break;
 	}
 
-	while (g_ponder.load() && !g_stop.load())
+	while ((g_ponder.load() || params.infinite) && !g_stop.load())
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
 	if (best_action == 0)

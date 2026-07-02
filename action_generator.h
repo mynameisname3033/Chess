@@ -547,11 +547,10 @@ static __forceinline void generate_only_tactical_pawn_actions(const board& chess
 	uint64_t ep_mask = 1ull << en_passant_square;
 	uint64_t left_ep = color == WHITE ? ((pawns & ~0x0101010101010101ull) << 7) & ep_mask : ((pawns & ~0x8080808080808080ull) >> 7) & ep_mask;
 	uint64_t right_ep = color == WHITE ? ((pawns & ~0x8080808080808080ull) << 9) & ep_mask : ((pawns & ~0x0101010101010101ull) >> 9) & ep_mask;
-	uint64_t captured_pawn_sq = (color == WHITE) ? (ep_mask >> 8) : (ep_mask << 8);
 
 	board temp;
 
-	if (left_ep && ((1ull << en_passant_square) || captured_pawn_sq))
+	if (left_ep)
 	{
 		int from = color == WHITE ? en_passant_square - 7 : en_passant_square + 7;
 
@@ -562,7 +561,7 @@ static __forceinline void generate_only_tactical_pawn_actions(const board& chess
 			actions.actions[actions.count++] = create_action(from, en_passant_square, EN_PASSANT);
 	}
 
-	if (right_ep && ((1ull << en_passant_square) || captured_pawn_sq))
+	if (right_ep)
 	{
 		int from = color == WHITE ? en_passant_square - 9 : en_passant_square + 9;
 

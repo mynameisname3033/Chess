@@ -50,7 +50,7 @@ void set_position(board& chess_board, const std::string& command)
 		idx += 7;
 	}
 
-	if (tokens[idx++] == "moves")
+	if (idx < (int)tokens.size() && tokens[idx++] == "moves")
 	{
 		while (idx < (int)tokens.size())
 		{

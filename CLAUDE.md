@@ -19,7 +19,7 @@ There are no automated tests — correctness is validated manually via perft (mo
 The engine communicates via UCI protocol over stdin/stdout. On startup it loads an NNUE weights file hardcoded in `main.cpp`:
 
 ```cpp
-init_parameters("C:/Users/akhil/c++/repos/Chess/nn_train/nnue_params8.bin");
+init_parameters("C:/Users/akhil/c++/repos/Chess/nn_train/nnue_params8_q.bin");
 ```
 
 Update this path if running on a different machine. To test perft or specific positions, uncomment the relevant lines in `main.cpp` before building.

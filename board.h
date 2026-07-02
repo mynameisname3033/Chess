@@ -250,9 +250,7 @@ struct board
 			if (action_flags == DOUBLE_PAWN)
 			{
 				en_passant_square = color == WHITE ? to - 8 : to + 8;
-
-				if (en_passant_square != -1)
-					hash ^= zobrist_ep[en_passant_square & 7];
+				hash ^= zobrist_ep[en_passant_square & 7];
 			}
 
 			if (action_flags == EN_PASSANT)

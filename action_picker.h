@@ -1,17 +1,7 @@
 #pragma once
 
 #include <cstdint>
-#include <exception>
-#include <forward_list>
-#include <list>
-#include <memory>
-#include <optional>
-#include <sstream>
-#include <string>
-#include <tuple>
-#include <unordered_map>
 #include <utility>
-#include <vector>
 #include "action.h"
 
 struct action_picker

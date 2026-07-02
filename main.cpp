@@ -132,6 +132,8 @@ int main()
 			std::cout << "option name MAX_HISTORY_EXTENSION type spin default 1 min 0 max 4" << std::endl;
 			std::cout << "option name HISTORY_EXTENSION_THRESHOLD type spin default 3 min 1 max 20" << std::endl;
 
+			std::cout << "option name PV_DEPTH_ADDITION type spin default 2 min 0 max 10" << std::endl;
+
 			std::cout << "option name MAX_HEURISTIC_VALUE type spin default 16384 min 0 max 1000000" << std::endl;
 
 			std::cout << "option name HISTORY_REDUCTION_DIVISOR type spin default 4000 min 1 max 100000" << std::endl;
@@ -159,7 +161,7 @@ int main()
 			std::cout << "option name MAX_FP_DEPTH_REMAINING type spin default 1 min 0 max " << MAX_DEPTH << std::endl;
 			std::cout << "option name FP_MARGIN_MULTIPLIER type spin default 150 min -2500 max 2500" << std::endl;
 
-			std::cout << "option name RAZOR_MAX_DEPTH_REMAINING type spin default 3 min 0 max " << MAX_DEPTH << std::endl;
+			std::cout << "option name MAX_RAZOR_DEPTH_REMAINING type spin default 3 min 0 max " << MAX_DEPTH << std::endl;
 			std::cout << "option name RAZOR_MARGIN type spin default 300 min 0 max 2000" << std::endl;
 
 			std::cout << "option name MIN_NULL_PRUNING_DEPTH_REMAINING type spin default 3 min 0 max " << MAX_DEPTH << std::endl;

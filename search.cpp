@@ -768,6 +768,8 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 			if (i >= MIN_LAR_INDEX && depth_remaining >= MIN_LAR_DEPTH_REMAINING && quiet && !is_killer)
 				reduction = LAR_table[i][depth_remaining];
 
+			int base_lar = reduction;
+
 			int history = history_heuristic[color][from][to];
 			reduction -= history / HISTORY_REDUCTION_DIVISOR;
 			if (!is_killer && history < -HEURISTIC_REDUCTION_THRESHOLD)
@@ -786,6 +788,8 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 			else if (continuation > HEURISTIC_REDUCTION_THRESHOLD)
 				--reduction;
 
+			int history_reduction = reduction - base_lar;
+
 			if (is_capture && !is_promo(action_flags))
 			{
 				int captured_piece = (action_flags == EN_PASSANT) ? PAWN : full_piece_piece(captured);
@@ -803,7 +807,11 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 			if (gives_check)
 				--reduction;
 
-			int search_depth = new_depth - std::max(0, std::min(reduction, new_depth));
+			int min_reduction = 0;
+			if (quiet && !is_killer && history_reduction <= -HISTORY_EXTENSION_THRESHOLD)
+				min_reduction = -MAX_HISTORY_EXTENSION;
+
+			int search_depth = new_depth - std::max(min_reduction, std::min(reduction, new_depth));
 
 			score = -negamax(temp_board, temp_net, search_depth, -alpha - 1, -alpha, depth + 1, action, moving_piece, prev_action_1, prev_piece_1, check_extensions);
 
@@ -812,7 +820,8 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 
 			if (score > alpha)
 			{
-				score = -negamax(temp_board, temp_net, new_depth, -beta, -alpha, depth + 1, action, moving_piece, prev_action_1, prev_piece_1, check_extensions);
+				int research_depth = std::max(new_depth, search_depth);
+				score = -negamax(temp_board, temp_net, research_depth, -beta, -alpha, depth + 1, action, moving_piece, prev_action_1, prev_piece_1, check_extensions);
 
 				if (search_aborted)
 					return 0;

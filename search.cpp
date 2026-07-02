@@ -375,7 +375,7 @@ static int quiescence(const board& chess_board, const NNUE& net, int alpha, int 
 				else if (chess_board.squares[to] != 0xFF || action_flags == EN_PASSANT)
 				{
 					int score = SEE(chess_board, current_action);
-					if (score < 0)
+					if (score < 0 && !root_in_check)
 						scores[i] = -BIG_INF;
 					else
 						scores[i] = 800000 + score + capture_history_score(chess_board, color, current_action);

@@ -107,7 +107,7 @@ int main()
 
 			std::cout << "option name MAX_THINKING_TIME_MS type spin default 15000 min 0 max 10000000" << std::endl;
 			std::cout << "option name MIN_THINKING_TIME_MS type spin default 5 min 0 max 10000000" << std::endl;
-			std::cout << "option name TIME_DIVISOR type spin default 30 min 1 max 500" << std::endl;
+			std::cout << "option name TIME_DIVISOR type spin default 25 min 1 max 500" << std::endl;
 
 			std::cout << "option name NODE_TM_BASE type spin default 152 min 0 max 400" << std::endl;
 			std::cout << "option name NODE_TM_SCALE type spin default 120 min 0 max 400" << std::endl;

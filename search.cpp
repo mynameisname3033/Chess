@@ -270,7 +270,7 @@ static int quiescence(const board& chess_board, const NNUE& net, int alpha, int 
 
 	const TTEntry* entry = tt.probe(chess_board.hash);
 
-	if (absolute_depth >= MAX_QUIESCENCE_DEPTH)
+	if (relative_depth >= MAX_QUIESCENCE_DEPTH)
 	{
 		return entry && entry->static_eval != -INF ? entry->static_eval : get_static_eval(chess_board, net);
 	}

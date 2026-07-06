@@ -9,10 +9,11 @@ struct go_params
 	int btime = -1;
 	int winc = 0;
 	int binc = 0;
+	int movestogo = -1;
 
 	int movetime = -1;
 	int depth = -1;
-	int nodes = -1;
+	long long nodes = -1;
 
 	bool infinite = false;
 	bool ponder = false;

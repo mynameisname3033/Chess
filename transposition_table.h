@@ -68,6 +68,29 @@ struct transposition_table
 			clear();
 		}
 
+		void resize_mb(uint64_t mb)
+		{
+			uint64_t bytes = mb * 1024 * 1024;
+
+			uint64_t cluster_count = 1;
+			while ((cluster_count * 2 * sizeof(TTCluster)) <= bytes)
+			{
+				cluster_count <<= 1;
+			}
+
+			if (cluster_count == mask + 1)
+			{
+				clear();
+				return;
+			}
+
+			delete[] table;
+			table = new TTCluster[cluster_count];
+			mask = cluster_count - 1;
+			total_slots = cluster_count * CLUSTER_SIZE;
+			clear();
+		}
+
 		~transposition_table()
 		{
 			delete[] table;

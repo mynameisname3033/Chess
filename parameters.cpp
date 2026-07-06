@@ -18,13 +18,12 @@ alignas(32) float* __restrict fc2_b = nullptr;
 alignas(32) float* __restrict fc3_w = nullptr;
 alignas(32) float* __restrict fc3_b = nullptr;
 
-void init_parameters(const std::string& filename)
+bool init_parameters(const std::string& filename)
 {
 	FILE* f = fopen(filename.c_str(), "rb");
 	if (!f)
 	{
-		std::cerr << "Failed to open parameters file" << std::endl;
-		exit(1);
+		return false;
 	}
 
 	embeddings = (int16_t*)_mm_malloc(sizeof(int16_t) * EMBEDDINGS * EMBEDDING_DIM, 32);
@@ -53,6 +52,7 @@ void init_parameters(const std::string& filename)
 	check(OUTPUT, fread(fc3_b, sizeof(float), OUTPUT, f));
 
 	fclose(f);
+	return true;
 }
 
 void destroy_parameters()

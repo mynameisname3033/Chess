@@ -38,6 +38,10 @@ uint16_t string_to_action(const board& chess_board, const std::string& action_st
 	if (action_str.size() < 4)
 		return 0;
 
+	if (action_str[0] < 'a' || action_str[0] > 'h' || action_str[1] < '1' || action_str[1] > '8' ||
+		action_str[2] < 'a' || action_str[2] > 'h' || action_str[3] < '1' || action_str[3] > '8')
+		return 0;
+
 	int from = (action_str[1] - '1') * 8 + (action_str[0] - 'a');
 	int to = (action_str[3] - '1') * 8 + (action_str[2] - 'a');
 

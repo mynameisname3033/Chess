@@ -16,13 +16,7 @@ There are no automated tests — correctness is validated manually via perft (mo
 
 ## Running
 
-The engine communicates via UCI protocol over stdin/stdout. On startup it loads an NNUE weights file hardcoded in `main.cpp`:
-
-```cpp
-init_parameters("C:/Users/akhil/c++/repos/Chess/nn_train/nnue_params8_q.bin");
-```
-
-Update this path if running on a different machine. To test perft or specific positions, uncomment the relevant lines in `main.cpp` before building.
+The engine communicates via UCI protocol over stdin/stdout. On startup it loads an NNUE weights file; `main.cpp` tries the hardcoded repo path first, then `nnue_params8_q.bin` next to the executable, then the current directory. On a different machine, just place the weights file next to `Chess.exe`. Perft is available at runtime via `go perft <depth>`.
 
 ## Architecture
 
@@ -48,10 +42,10 @@ This is a UCI chess engine with NNUE evaluation, written as a single-threaded C+
   - Internal iterative deepening (IID)
   - Quiescence search with SEE pruning
   - Killer moves (3 slots per ply), history heuristic, counter-move heuristic, 2-ply continuation history
-- **`transposition_table.h`** — Fixed-size TT (2^25 clusters of 4 entries). Uses Zobrist key for lookup; entries store best action, score, static eval, depth, and bound type (EXACT/LOWER/UPPER).
+- **`transposition_table.h`** — TT with clusters of 4 entries (default 512 MB, resizable at runtime via the UCI `Hash` option in MB). Uses Zobrist key for lookup; entries store best action, score, static eval, depth, and bound type (EXACT/LOWER/UPPER).
 
 ### UCI interface
-- **`uci_communicator.h/.cpp`** — Parses `position` and `go` commands. `set_position()` applies moves to the board. `parse_go_command()` returns time controls as `go_params`.
+- **`uci_communicator.h/.cpp`** — Parses `position` and `go` commands. `set_position()` validates each move against `generate_legal_actions()` and stops at the first illegal one; FEN strings with 4 or 5 fields are accepted (missing counters padded). `parse_go_command()` parses numbers defensively (malformed input never throws), `nodes` is 64-bit, and `movestogo` is supported. Time management (`choose_search_times` in `search.cpp`) caps both soft and hard limits at `time_left - MOVE_OVERHEAD_MS` so the engine can never think past its clock.
 - **`options.h/.cpp`** — All tunable search parameters (time management, pruning margins, reduction divisors) are exposed as UCI `option` entries and stored as globals accessed via `option_map`. Changing them at runtime calls `init_LAR_table()` to recompute reduction tables.
 - **`main.cpp`** — UCI loop: handles `uci`, `isready`, `setoption`, `ucinewgame`, `position`, `go`, `stop`, `ponderhit`, `quit`. Also contains `perft`/`perft_divide` for move generation testing (commented out by default). The **search runs on a worker thread** while the main thread keeps reading stdin, so `stop`/`ponderhit`/`isready` work mid-search. Only one worker runs at a time; board/option-mutating commands (`position`, `ucinewgame`, `setoption`) call `join_search()` first to avoid racing the `board`. All engine→GUI output goes through `uci_send()` (mutex-guarded) so the worker's `info`/`bestmove` lines can't race or interleave with the main thread under `sync_with_stdio(false)`.
 

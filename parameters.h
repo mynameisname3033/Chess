@@ -21,5 +21,5 @@ extern alignas(32) float* __restrict fc2_b;
 extern alignas(32) float* __restrict fc3_w;
 extern alignas(32) float* __restrict fc3_b;
 
-void init_parameters(const std::string& filename);
+bool init_parameters(const std::string& filename);
 void destroy_parameters();

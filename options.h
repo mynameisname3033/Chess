@@ -16,6 +16,7 @@ inline constexpr int CORR_SIZE = 16384;
 extern int MAX_THINKING_TIME_MS;
 extern int MIN_THINKING_TIME_MS;
 extern int TIME_DIVISOR;
+extern int MOVE_OVERHEAD_MS;
 
 extern int NODE_TM_BASE;
 extern int NODE_TM_SCALE;

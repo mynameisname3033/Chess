@@ -99,6 +99,11 @@ static __forceinline bool should_abort()
 	return elapsed >= search_hard_limit_ms;
 }
 
+void resize_tt_mb(int mb)
+{
+	tt.resize_mb(std::max(mb, 1));
+}
+
 void reset_engine()
 {
 	tt.clear();
@@ -118,9 +123,9 @@ void reset_engine()
 
 void init_LAR_table()
 {
-	for (int i = MIN_LAR_INDEX; i < 218; ++i)
+	for (int i = std::max(MIN_LAR_INDEX, 1); i < 218; ++i)
 	{
-		for (int depth_remaining = MIN_LAR_DEPTH_REMAINING; depth_remaining <= MAX_DEPTH; ++depth_remaining)
+		for (int depth_remaining = std::max(MIN_LAR_DEPTH_REMAINING, 1); depth_remaining <= MAX_DEPTH; ++depth_remaining)
 		{
 			int reduction = 1 + log(depth_remaining) * log(i) / LAR_REDUCTION_DIVISOR;
 			reduction = std::min(reduction, depth_remaining);
@@ -562,7 +567,7 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 
 			if (score >= beta)
 			{
-				int verify = negamax(chess_board, net, depth_remaining - reduction, beta - 1, beta, depth, prev_action_1, prev_piece_1, prev_action_2, prev_piece_2, check_extensions);
+				int verify = negamax(chess_board, net, std::max(depth_remaining - reduction, 0), beta - 1, beta, depth, prev_action_1, prev_piece_1, prev_action_2, prev_piece_2, check_extensions);
 
 				if (search_aborted)
 					return 0;
@@ -577,7 +582,7 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 	}
 
 
-	if (depth_remaining == 0)
+	if (depth_remaining <= 0)
 		return quiescence(chess_board, net, alpha, beta, 1, depth, prev_action_1, prev_piece_1, prev_action_2, prev_piece_2);
 
 	action_list legal_actions = generate_legal_actions(chess_board);
@@ -780,7 +785,7 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 			int reduction = 0;
 
 			if (i >= MIN_LAR_INDEX && depth_remaining >= MIN_LAR_DEPTH_REMAINING && quiet && !is_killer)
-				reduction = LAR_table[i][depth_remaining];
+				reduction = LAR_table[i][std::min(depth_remaining, MAX_DEPTH)];
 
 			int base_lar = reduction;
 
@@ -1025,13 +1030,24 @@ static __forceinline std::tuple<int, int, bool> choose_search_times(const go_par
 	if (time_left_ms <= 0)
 		return { MIN_THINKING_TIME_MS, MIN_THINKING_TIME_MS, true };
 
+	int max_usable_ms = std::max(time_left_ms - MOVE_OVERHEAD_MS, 1);
+
 	time_left_ms -= MIN_THINKING_TIME_MS;
-	int thinking_time_ms = time_left_ms / TIME_DIVISOR + inc_ms * (INC_FRACTION / 100.0f);
+
+	int divisor = TIME_DIVISOR;
+	if (params.movestogo > 0)
+		divisor = std::min(divisor, params.movestogo);
+
+	int thinking_time_ms = time_left_ms / divisor + inc_ms * (INC_FRACTION / 100.0f);
 
 	thinking_time_ms = std::min(thinking_time_ms, MAX_THINKING_TIME_MS);
 	thinking_time_ms = std::max(thinking_time_ms, MIN_THINKING_TIME_MS);
+	thinking_time_ms = std::min(thinking_time_ms, max_usable_ms);
 
-	return { (int)(thinking_time_ms * (HARD_LIMIT_MULTIPLIER / 100.0f)), thinking_time_ms, false };
+	int hard_limit_ms = (int)(thinking_time_ms * (HARD_LIMIT_MULTIPLIER / 100.0f));
+	hard_limit_ms = std::min(hard_limit_ms, max_usable_ms);
+
+	return { hard_limit_ms, thinking_time_ms, false };
 }
 
 uint16_t get_best_action(const board& chess_board, action_list& legal_actions, const go_params& params)
@@ -1310,7 +1326,7 @@ uint16_t get_best_action(const board& chess_board, action_list& legal_actions, c
 		if (g_ponder.load())
 			continue;
 
-		if (params.depth != -1 && depth >= params.depth || params.nodes != -1 && nodes >= params.nodes)
+		if (params.depth != -1 && depth >= params.depth || params.nodes != -1 && nodes >= (uint64_t)params.nodes)
 			break;
 
 		auto limit_now = std::chrono::steady_clock::now();

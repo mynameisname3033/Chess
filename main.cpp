@@ -132,7 +132,10 @@ int main()
 			std::cout << "option name MAX_HISTORY_EXTENSION type spin default 1 min 0 max 4" << std::endl;
 			std::cout << "option name HISTORY_EXTENSION_THRESHOLD type spin default 3 min 1 max 20" << std::endl;
 
-			std::cout << "option name PV_DEPTH_ADDITION type spin default 2 min 0 max 10" << std::endl;
+			std::cout << "option name USE_HISTORY_EXTENSION_CAP type spin default 1 min 0 max 1" << std::endl;
+			std::cout << "option name MAX_HISTORY_EXTENSIONS_PER_LINE type spin default 3 min 0 max " << MAX_DEPTH << std::endl;
+
+			std::cout << "option name PV_DEPTH_ADDITION type spin default 1 min 0 max 10" << std::endl;
 
 			std::cout << "option name MAX_HEURISTIC_VALUE type spin default 16384 min 0 max 1000000" << std::endl;
 
@@ -152,7 +155,7 @@ int main()
 
 			std::cout << "option name ASPIRATION_WINDOW type spin default 35 min 5 max 500" << std::endl;
 
-			std::cout << "option name MAX_QUIESCENCE_DEPTH type spin default 30 min 0 max " << MAX_DEPTH << std::endl;
+			std::cout << "option name MAX_QUIESCENCE_DEPTH type spin default 30 min 0 max 64" << std::endl;
 			std::cout << "option name MAX_QUIET_QUIESCENCE_CHECK_DEPTH type spin default 2 min 0 max " << MAX_DEPTH << std::endl;
 
 			std::cout << "option name MAX_RFP_DEPTH_REMAINING type spin default 3 min 0 max " << MAX_DEPTH << std::endl;

@@ -270,7 +270,7 @@ static int quiescence(const board& chess_board, const NNUE& net, int alpha, int 
 
 	const TTEntry* entry = tt.probe(chess_board.hash);
 
-	if (relative_depth >= MAX_QUIESCENCE_DEPTH)
+	if (relative_depth >= MAX_QUIESCENCE_DEPTH || absolute_depth >= MAX_DEPTH)
 	{
 		return entry && entry->static_eval != -INF ? entry->static_eval : get_static_eval(chess_board, net);
 	}
@@ -454,7 +454,7 @@ static int quiescence(const board& chess_board, const NNUE& net, int alpha, int 
 	return alpha;
 }
 
-static int negamax(const board& chess_board, const NNUE& net, int depth_remaining, int alpha, int beta, int depth, uint16_t prev_action_1, int prev_piece_1, uint16_t prev_action_2, int prev_piece_2, int check_extensions = 0, uint16_t excluded_action = 0)
+static int negamax(const board& chess_board, const NNUE& net, int depth_remaining, int alpha, int beta, int depth, uint16_t prev_action_1, int prev_piece_1, uint16_t prev_action_2, int prev_piece_2, int check_extensions = 0, int history_extensions = 0, uint16_t excluded_action = 0)
 {
 	if (depth > max_seldepth)
 	{
@@ -502,7 +502,11 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 
 	if (root_is_pv && (!entry || entry->is_quiescence) && depth_remaining >= MIN_IID_DEPTH_REMAINING)
 	{
-		negamax(chess_board, net, depth_remaining - IID_DEPTH_REDUCTION, alpha, beta, depth, prev_action_1, prev_piece_1, prev_action_2, prev_piece_2, check_extensions);
+		negamax(chess_board, net, depth_remaining - IID_DEPTH_REDUCTION, alpha, beta, depth, prev_action_1, prev_piece_1, prev_action_2, prev_piece_2, check_extensions, history_extensions);
+
+		if (search_aborted)
+			return 0;
+
 		entry = tt.probe(key);
 		tt_hit = entry && !entry->is_quiescence;
 		if (tt_hit)
@@ -555,14 +559,14 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 			temp.make_null_action();
 
 			int reduction = BASE_NULL_PRUNING_VERIFICATION_REDUCTION + depth_remaining / NULL_PRUNING_VERIFICATION_REDUCTION_DIVISOR;
-			int score = -negamax(temp, net, std::max(depth_remaining - 1 - reduction, 0), -beta, -beta + 1, depth + 1, 0, 0, 0, 0, check_extensions);
+			int score = -negamax(temp, net, std::max(depth_remaining - 1 - reduction, 0), -beta, -beta + 1, depth + 1, 0, 0, 0, 0, check_extensions, history_extensions);
 
 			if (search_aborted)
 				return 0;
 
 			if (score >= beta)
 			{
-				int verify = negamax(chess_board, net, depth_remaining - reduction, beta - 1, beta, depth, prev_action_1, prev_piece_1, prev_action_2, prev_piece_2, check_extensions);
+				int verify = negamax(chess_board, net, depth_remaining - reduction, beta - 1, beta, depth, prev_action_1, prev_piece_1, prev_action_2, prev_piece_2, check_extensions, history_extensions);
 
 				if (search_aborted)
 					return 0;
@@ -646,7 +650,11 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 		singular_beta = std::max(singular_beta, -INF + 1);
 
 		int singular_depth = (depth_remaining - SE_REDUCTION_BASE) / SE_REUCTION_DIVISOR;
-		int singular_score = negamax(chess_board, net, singular_depth, singular_beta - 1, singular_beta, depth, prev_action_1, prev_piece_1, prev_action_2, prev_piece_2, check_extensions, tt_action);
+		int singular_score = negamax(chess_board, net, singular_depth, singular_beta - 1, singular_beta, depth, prev_action_1, prev_piece_1, prev_action_2, prev_piece_2, check_extensions, history_extensions, tt_action);
+
+		if (search_aborted)
+			return 0;
+
 		if (singular_score < singular_beta - SE_DOUBLE_EXTENSION_MARGIN)
 		{
 			extension = 2;
@@ -770,7 +778,7 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 
 		if (i == 0)
 		{
-			score = -negamax(temp_board, temp_net, new_depth, -beta, -alpha, depth + 1, action, moving_piece, prev_action_1, prev_piece_1, check_extensions);
+			score = -negamax(temp_board, temp_net, new_depth, -beta, -alpha, depth + 1, action, moving_piece, prev_action_1, prev_piece_1, check_extensions, history_extensions);
 
 			if (search_aborted)
 				return 0;
@@ -780,7 +788,7 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 			int reduction = 0;
 
 			if (i >= MIN_LAR_INDEX && depth_remaining >= MIN_LAR_DEPTH_REMAINING && quiet && !is_killer)
-				reduction = LAR_table[i][depth_remaining];
+				reduction = LAR_table[i][std::min(depth_remaining, MAX_DEPTH)];
 
 			int base_lar = reduction;
 
@@ -821,13 +829,17 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 			if (gives_check)
 				--reduction;
 
+			bool history_extension_eligible = quiet && history_reduction <= -HISTORY_EXTENSION_THRESHOLD && history_extensions < MAX_HISTORY_EXTENSIONS_PER_LINE;
+
 			int min_reduction = 0;
-			if (quiet && history_reduction <= -HISTORY_EXTENSION_THRESHOLD)
+			if (history_extension_eligible)
 				min_reduction = -MAX_HISTORY_EXTENSION;
 
 			int search_depth = new_depth - std::max(min_reduction, std::min(reduction, new_depth));
 
-			score = -negamax(temp_board, temp_net, search_depth, -alpha - 1, -alpha, depth + 1, action, moving_piece, prev_action_1, prev_piece_1, check_extensions);
+			int child_history_extensions = history_extensions + (min_reduction != 0 ? 1 : 0);
+
+			score = -negamax(temp_board, temp_net, search_depth, -alpha - 1, -alpha, depth + 1, action, moving_piece, prev_action_1, prev_piece_1, check_extensions, child_history_extensions);
 
 			if (search_aborted)
 				return 0;
@@ -835,7 +847,7 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 			if (score > alpha)
 			{
 				int research_depth = std::max(new_depth, search_depth);
-				score = -negamax(temp_board, temp_net, research_depth, -beta, -alpha, depth + 1, action, moving_piece, prev_action_1, prev_piece_1, check_extensions);
+				score = -negamax(temp_board, temp_net, research_depth, -beta, -alpha, depth + 1, action, moving_piece, prev_action_1, prev_piece_1, check_extensions, child_history_extensions);
 
 				if (search_aborted)
 					return 0;

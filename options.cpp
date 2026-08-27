@@ -81,6 +81,8 @@ int IID_DEPTH_REDUCTION = 3;
 int MIN_CHECK_EXTENSION_DEPTH_REMAINING = 2;
 int MAX_CHECK_EXTENSIONS = 2;
 
+int HASH_MB = 512;
+
 int PIECE_VALUES[PIECE_NB] = { 100, 320, 330, 500, 975, 20000 };
 
 std::unordered_map<std::string, int*> option_map =
@@ -161,4 +163,6 @@ std::unordered_map<std::string, int*> option_map =
 
 	{"MIN_CHECK_EXTENSION_DEPTH_REMAINING", &MIN_CHECK_EXTENSION_DEPTH_REMAINING},
 	{"MAX_CHECK_EXTENSIONS", &MAX_CHECK_EXTENSIONS},
+
+	{"Hash", &HASH_MB},
 };

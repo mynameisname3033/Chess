@@ -2,10 +2,11 @@
 
 #include <cstdint>
 #include <cstring>
+#include <algorithm>
 #include <xmmintrin.h>
 #include "options.h"
 
-static inline constexpr int SIZE = 2 << 24;
+static inline constexpr int DEFAULT_HASH_MB = 512;
 static inline constexpr int CLUSTER_SIZE = 4;
 
 enum TTFlag : uint8_t { EXACT, LOWERBOUND, UPPERBOUND };
@@ -54,23 +55,34 @@ struct transposition_table
 			current_generation = (current_generation + 1) & 31;
 		}
 
-		transposition_table()
+		transposition_table(int mb = DEFAULT_HASH_MB) : table(nullptr), mask(0)
 		{
-			uint64_t cluster_count = 1;
-			while ((cluster_count * CLUSTER_SIZE) < SIZE)
-			{
-				cluster_count <<= 1;
-			}
-
-			total_slots = cluster_count * CLUSTER_SIZE;
-			table = new TTCluster[cluster_count];
-			mask = cluster_count - 1;
-			clear();
+			resize(mb);
 		}
 
 		~transposition_table()
 		{
 			delete[] table;
+		}
+
+		// Reallocates the table to (approximately, rounded down to a power
+		// of two clusters) the requested size in MB. Wipes all entries.
+		__forceinline void resize(int mb)
+		{
+			uint64_t bytes = (uint64_t)std::max(mb, 1) * 1024ull * 1024ull;
+			uint64_t cluster_count = bytes / sizeof(TTCluster);
+			if (cluster_count < 1)
+				cluster_count = 1;
+
+			uint64_t pow2 = 1;
+			while ((pow2 << 1) <= cluster_count)
+				pow2 <<= 1;
+
+			delete[] table;
+			table = new TTCluster[pow2];
+			mask = pow2 - 1;
+			total_slots = pow2 * CLUSTER_SIZE;
+			clear();
 		}
 
 		__forceinline void prefetch(uint64_t key) const
@@ -110,7 +122,8 @@ struct transposition_table
 			{
 				TTEntry& e = cluster.entries[target_index];
 				e.generation = current_generation;
-				if (depth_remaining > e.depth_remaining || (e.is_quiescence && !is_quiescence) || (depth_remaining == e.depth_remaining && flag == EXACT))
+
+				if ((depth_remaining + 2 > (int)e.depth_remaining) || flag == EXACT || (e.is_quiescence && !is_quiescence))
 				{
 					if (best_action != 0)
 						e.best_action = best_action;
@@ -120,6 +133,11 @@ struct transposition_table
 					e.flag = flag & 0x03;
 					e.is_quiescence = is_quiescence;
 				}
+				else if (best_action != 0)
+				{
+					e.best_action = best_action;
+				}
+
 				if (static_eval != -INF)
 				{
 					e.static_eval = static_eval;

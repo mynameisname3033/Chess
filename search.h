@@ -8,6 +8,7 @@
 
 void reset_engine();
 void init_LAR_table();
+void resize_tt(int mb);
 uint16_t get_best_action(const board& chess_board, action_list& legal_actions, const go_params& params);
 
 void prepare_search(bool ponder);

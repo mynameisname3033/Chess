@@ -28,6 +28,8 @@ static int pv_length[MAX_DEPTH + 1];
 
 static transposition_table tt;
 
+void resize_tt(int mb) { tt.resize(mb); }
+
 static uint16_t killer_actions[MAX_DEPTH + 1][3];
 static int history_heuristic[COLOR_NB][64][64];
 
@@ -265,7 +267,7 @@ static int quiescence(const board& chess_board, const NNUE& net, int alpha, int 
 		return 0;
 	}
 
-	if (chess_board.is_draw())
+	if (chess_board.is_draw(absolute_depth))
 		return 0;
 
 	const TTEntry* entry = tt.probe(chess_board.hash);
@@ -469,7 +471,7 @@ static int negamax(const board& chess_board, const NNUE& net, int depth_remainin
 
 	pv_length[depth] = depth;
 
-	if (chess_board.is_draw())
+	if (chess_board.is_draw(depth))
 		return 0;
 
 	if (depth >= MAX_DEPTH)
@@ -1091,6 +1093,7 @@ uint16_t get_best_action(const board& chess_board, action_list& legal_actions, c
 	{
 		uint64_t key = chess_board.hash;
 		const TTEntry* entry = tt.probe(key);
+		uint16_t entry_best_action = entry ? entry->best_action : 0;
 
 		max_seldepth = 0;
 
@@ -1110,7 +1113,7 @@ uint16_t get_best_action(const board& chess_board, action_list& legal_actions, c
 			pass_start_nodes = nodes;
 			best_action_nodes = 0;
 
-			uint16_t priority_action = current_best_action != 0 ? current_best_action : (best_action != 0 ? best_action : (entry ? entry->best_action : 0));
+			uint16_t priority_action = current_best_action != 0 ? current_best_action : (best_action != 0 ? best_action : entry_best_action);
 			action_picker picker(legal_actions, priority_action);
 
 			int alpha_orig = alpha;
@@ -1143,7 +1146,7 @@ uint16_t get_best_action(const board& chess_board, action_list& legal_actions, c
 						{
 							scores[i] = 3000000;
 						}
-						else if (entry && current_action == entry->best_action)
+						else if (entry_best_action != 0 && current_action == entry_best_action)
 						{
 							scores[i] = 2000000;
 						}

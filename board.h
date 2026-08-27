@@ -8,6 +8,7 @@
 #include "piece.h"
 #include "action.h"
 #include "zobrist_hash.h"
+#include "options.h"
 
 enum castling_rights : uint8_t
 {
@@ -383,21 +384,31 @@ struct board
 		side_to_move ^= 1;
 
 		++halfmove_clock;
+
+		repetition_idx = 0;
 		if (repetition_idx < 128)
 			repetition_stack[repetition_idx++] = hash;
 	}
 
-	__forceinline bool is_draw() const
+	__forceinline bool is_draw(int ply) const
 	{
 		if (halfmove_clock >= 100)
 			return true;
 
 		int start = repetition_idx - 3;
+
+		int root_idx = repetition_idx - ply - 1;
+		int matches = 0;
+
 		for (int i = start; i >= 0; i -= 2)
 		{
 			if (repetition_stack[i] == hash)
 			{
-				return true;
+				if (i >= root_idx)
+					return true;
+
+				if (++matches >= 2)
+					return true;
 			}
 		}
 

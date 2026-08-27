@@ -184,6 +184,8 @@ int main()
 			std::cout << "option name MIN_CHECK_EXTENSION_DEPTH_REMAINING type spin default 2 min 0 max " << MAX_DEPTH << std::endl;
 			std::cout << "option name MAX_CHECK_EXTENSIONS type spin default 2 min 0 max 10" << std::endl;
 
+			std::cout << "option name Hash type spin default 512 min 1 max 65536" << std::endl;
+
 			std::cout << "uciok" << std::endl;
 		}
 		else if (input == "isready")
@@ -221,6 +223,9 @@ int main()
 				{
 					*it->second = std::stoi(value_str);
 					init_LAR_table();
+
+					if (name == "Hash")
+						resize_tt(HASH_MB);
 				}
 				catch (...) {}
 			}

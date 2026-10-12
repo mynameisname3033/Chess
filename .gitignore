@@ -5,7 +5,6 @@
 
 lichess-bot/
 nn_train/
-build/
 
 # User-specific files
 *.rsuser

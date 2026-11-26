@@ -4,7 +4,7 @@ I started this C++ chess engine at 14 to explore how a program chooses a move. I
 
 [Download for Windows x64 (AVX2)](https://github.com/mynameisname3033/Chess/releases/latest/download/Chess-windows-x64-avx2.zip)
 
-Read [Chess Engine Summary](ENGINE.md) for a walkthrough from packing a move into 16 bits to searching candidate moves and evaluating positions with a quantized network.
+Read [Ply14 Details](Ply14 Details.md) for a walkthrough from packing a move into 16 bits to searching candidate moves and evaluating positions with a quantized network.
 
 ## Play against it
 

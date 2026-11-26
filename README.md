@@ -4,7 +4,7 @@ I’m Akhil, and I started building Ply14 at 14 because I wanted to understand h
 
 [Download for Windows x64 (AVX2)](https://github.com/mynameisname3033/Chess/releases/latest/download/Chess-windows-x64-avx2.zip)
 
-Read [Chess Engine Summary](ENGINE.md) for a walkthrough from packing a move into 16 bits to searching candidate moves and evaluating positions with a quantized network.
+Read [Ply14 Details](Ply14%20Details.md) for a walkthrough from packing a move into 16 bits to searching candidate moves and evaluating positions with a quantized network.
 
 ## Play against it
 

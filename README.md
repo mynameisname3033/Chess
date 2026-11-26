@@ -1,10 +1,10 @@
 # Chess
 
-I’m Akhil, and I started building Ply14 at 14 because I wanted to understand how a chess engine chooses a move. I wrote up the decisions I made along the way, from fitting a move into 16 bits to teaching the engine to evaluate a position. It searches ahead with alpha-beta pruning and evaluates positions with an efficiently updatable neural network (NNUE). You can play against it or use it to analyze a position in a chess GUI.
+I started this C++ chess engine at 14 to explore how a program chooses a move. It searches ahead with alpha-beta pruning and evaluates positions with an efficiently updatable neural network (NNUE). You can play against it or use it to analyze a position in a chess GUI.
 
 [Download for Windows x64 (AVX2)](https://github.com/mynameisname3033/Chess/releases/latest/download/Chess-windows-x64-avx2.zip)
 
-Read [Ply14 Details](Ply14%20Details.md) for a walkthrough from packing a move into 16 bits to searching candidate moves and evaluating positions with a quantized network.
+Read [Chess Engine Summary](ENGINE.md) for a walkthrough from packing a move into 16 bits to searching candidate moves and evaluating positions with a quantized network.
 
 ## Play against it
 
@@ -24,12 +24,6 @@ go depth 8
 ```
 
 Look for `uciok`, then `readyok`. After the search, the line beginning with `bestmove` gives the engine's reply as Black. Enter `quit` to exit.
-
-## Inside the engine
-
-- **Move generation.** The engine represents piece sets as 64-bit bitboards and uses precomputed attack tables for sliding pieces. To test the generator, enter `position startpos` and then `go perft 4`. The expected count is 197,281 legal move sequences. [Move generator](action_generator.h)
-- **Search.** Iterative deepening searches the same position at increasing depths. A transposition table lets the engine reuse earlier search results when different move sequences lead to the same position. [Search implementation](search.cpp)
-- **Evaluation.** After a move such as e2–e4, the evaluator updates the pawn's contribution to its neural network. A king move changes the reference square used to encode pieces, so the engine rebuilds the accumulator. [Neural evaluator](nnue.h)
 
 ## Build from source
 

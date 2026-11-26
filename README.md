@@ -1,20 +1,20 @@
-# Chess
+# Parallax
 
-I’m Akhil, and I started building Ply14 at 14 because I wanted to understand how a chess engine chooses a move. I wrote up the decisions I made along the way, from fitting a move into 16 bits to teaching the engine to evaluate a position. It searches ahead with alpha-beta pruning and evaluates positions with an efficiently updatable neural network (NNUE). You can play against it or use it to analyze a position in a chess GUI.
+I’m Akhil, and I started building Parallax because I wanted to understand how a chess engine chooses a move. I wrote up the decisions I made along the way, from fitting a move into 16 bits to teaching the engine to evaluate a position. It searches ahead with alpha-beta pruning and evaluates positions with an efficiently updatable neural network (NNUE). You can play against it or use it to analyze a position in a chess GUI.
 
 [Download for Windows x64 (AVX2)](https://github.com/mynameisname3033/Chess/releases/latest/download/Chess-windows-x64-avx2.zip)
 
-Read [Ply14 Details](Ply14%20Details.md) for a walkthrough from packing a move into 16 bits to searching candidate moves and evaluating positions with a quantized network.
+Read [Parallax Details](Parallax%20Details.md) for a walkthrough from packing a move into 16 bits to searching candidate moves and evaluating positions with a quantized network.
 
 ## Play against it
 
 1. Download and extract the ZIP on a 64-bit Windows PC with an AVX2-capable CPU. Keep `Chess.exe` and `nnue_params8_q.bin` together.
 2. In a UCI-compatible chess GUI such as Cute Chess, open the engine settings, add a new engine, choose UCI, and select the extracted `Chess.exe`.
-3. Start a game and select the engine as your opponent. It identifies itself as `MyEngine`.
+3. Start a game and select the engine as your opponent.
 
 ## Playing strength
 
-Ply14 played 1,328 local games against six engines at 10 seconds per side plus 0.1 seconds per move. Each opening was played twice, with colors reversed. The CCRL 40/15 column gives each opponent's reference rating. All match results are from Ply14's perspective, with draws worth half a point.
+Parallax played 1,328 local games against six engines at 10 seconds per side plus 0.1 seconds per move. Each opening was played twice, with colors reversed. The CCRL 40/15 column gives each opponent's reference rating. All match results are from Parallax's perspective, with draws worth half a point.
 
 | Opponent | CCRL 40/15 | Games | Wins–draws–losses | Score | Elo difference (approx. 95% interval) |
 |---|---:|---:|---:|---:|---:|

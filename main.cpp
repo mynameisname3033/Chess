@@ -100,7 +100,7 @@ int main()
 	{
 		if (input == "uci")
 		{
-			std::cout << "id name MyEngine" << std::endl;
+			std::cout << "id name Parallax" << std::endl;
 			std::cout << "id author Akhil" << std::endl;
 
 			std::cout << "option name Ponder type check default false" << std::endl;

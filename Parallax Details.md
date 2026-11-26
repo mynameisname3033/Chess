@@ -1,4 +1,4 @@
-# Ply14 Details
+# Parallax Details
 
 # 1\. Introduction
 

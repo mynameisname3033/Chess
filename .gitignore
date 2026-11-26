@@ -6,6 +6,8 @@
 CLAUDE.md
 lichess-bot/
 /build/
+/gauntlet.py
+/gauntlet_out/
 nn_train/*
 !nn_train/nnue_params8_q.bin
 !nn_train/init.py

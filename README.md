@@ -12,6 +12,21 @@ Read [Ply14 Details](Ply14%20Details.md) for a walkthrough from packing a move i
 2. In a UCI-compatible chess GUI such as Cute Chess, open the engine settings, add a new engine, choose UCI, and select the extracted `Chess.exe`.
 3. Start a game and select the engine as your opponent. It identifies itself as `MyEngine`.
 
+## Playing strength
+
+Ply14 played 1,328 local games against six engines at 10 seconds per side plus 0.1 seconds per move. Each opening was played twice, with colors reversed. The CCRL 40/15 column gives each opponent's reference rating. All match results are from Ply14's perspective, with draws worth half a point.
+
+| Opponent | CCRL 40/15 | Games | Wins–draws–losses | Score | Elo difference (approx. 95% interval) |
+|---|---:|---:|---:|---:|---:|
+| Lozza 11.0 | 3250 | 272 | 51–129–92 | 42.5% | −53 ± 30 |
+| KnightX 5.0 | 3206 | 64 | 46–13–5 | 82.0% | +264 ± 111 |
+| Pingu 5.0.0 | 3187 | 256 | 89–119–48 | 58.0% | +56 ± 29 |
+| Strelka 5.5 | 3140 | 608 | 248–164–196 | 54.3% | +30 ± 23 |
+| Admete 1.9.0 | 3103 | 64 | 38–19–7 | 74.2% | +184 ± 74 |
+| Amoeba 3.4 | 3042 | 64 | 43–16–5 | 79.7% | +237 ± 78 |
+
+Match lengths varied because testing stopped early when the evidence favored either engine strongly enough. Overall, the results place the engine at 3170–3245 realistically. Note that these are estimates run from my own computer.
+
 ## Try a search from the terminal
 
 Open PowerShell in the extracted folder and run `.\Chess.exe`. Enter these commands one line at a time:

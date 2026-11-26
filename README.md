@@ -12,6 +12,8 @@ Read [Parallax Details](Parallax%20Details.md) for a walkthrough of the engine.
 2. In a UCI-compatible **chess GUI** such as Cute Chess, open the engine settings, add a new engine, choose UCI, and select the extracted `Chess.exe`.
 3. **Start a game** and select the engine as your opponent.
 
+Optionally, I sometimes host a running bot named ParallaxEngine on Lichess that you can play.
+
 ## Playing strength
 
 Parallax played 1,328 local games against **six engines** at 10 seconds per side plus 0.1 seconds per move. Each opening was played twice, with colors reversed. The **CCRL 40/15** column gives each opponent's reference rating. All match results are from Parallax's perspective, with draws worth half a point.

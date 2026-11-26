@@ -4,7 +4,9 @@
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
 lichess-bot/
-nn_train/
+/build/
+nn_train/*
+!nn_train/nnue_params8_q.bin
 
 # User-specific files
 *.rsuser

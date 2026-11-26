@@ -10,19 +10,13 @@ This is a Visual Studio C++ project. Build using Visual Studio 2022 or MSBuild:
 msbuild Chess.sln /p:Configuration=Release /p:Platform=x64
 ```
 
-Or open `Chess.sln` in Visual Studio and build from there. The output executable goes to `Chess\x64\Release\` or `Chess\x64\Debug\`.
+Or open `Chess.sln` in Visual Studio and build from there. The x64 Release executable goes to `build\x64\Release\`.
 
 There are no automated tests — correctness is validated manually via perft (move generation) and UCI interaction.
 
 ## Running
 
-The engine communicates via UCI protocol over stdin/stdout. On startup it loads an NNUE weights file hardcoded in `main.cpp`:
-
-```cpp
-init_parameters("C:/Users/akhil/c++/repos/Chess/nn_train/nnue_params8_q.bin");
-```
-
-Update this path if running on a different machine. To test perft or specific positions, uncomment the relevant lines in `main.cpp` before building.
+The engine communicates via UCI over stdin/stdout. The build copies `nn_train/nnue_params8_q.bin` beside the executable, and startup loads it from that directory. Use `position startpos` followed by `go perft 4` to check the move generator.
 
 ## Architecture
 

@@ -1,5 +1,9 @@
 #define _CRT_SECURE_NO_WARNINGS
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#define NOUSER
 
+#include <windows.h>
 #include <cstdio>
 #include <cstdlib>
 #include <cstdint>
@@ -18,12 +22,23 @@ alignas(32) float* __restrict fc2_b = nullptr;
 alignas(32) float* __restrict fc3_w = nullptr;
 alignas(32) float* __restrict fc3_b = nullptr;
 
-void init_parameters(const std::string& filename)
+void init_parameters()
 {
-	FILE* f = fopen(filename.c_str(), "rb");
+	std::wstring path(32768, L'\0');
+	DWORD length = GetModuleFileNameW(nullptr, &path[0], static_cast<DWORD>(path.size()));
+	if (length == 0 || length >= path.size())
+	{
+		std::cerr << "Cannot locate the engine executable." << std::endl;
+		exit(1);
+	}
+
+	path.resize(length);
+	path.erase(path.find_last_of(L"/\\") + 1);
+	path += L"nnue_params8_q.bin";
+	FILE* f = _wfopen(path.c_str(), L"rb");
 	if (!f)
 	{
-		std::cerr << "Failed to open parameters file" << std::endl;
+		std::wcerr << L"Cannot open NNUE weights: " << path << std::endl;
 		exit(1);
 	}
 

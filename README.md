@@ -25,12 +25,6 @@ go depth 8
 
 Look for `uciok`, then `readyok`. After the search, the line beginning with `bestmove` gives the engine's reply as Black. Enter `quit` to exit.
 
-## Inside the engine
-
-- **Move generation.** The engine represents piece sets as 64-bit bitboards and uses precomputed attack tables for sliding pieces. To test the generator, enter `position startpos` and then `go perft 4`. The expected count is 197,281 legal move sequences. [Move generator](action_generator.h)
-- **Search.** Iterative deepening searches the same position at increasing depths. A transposition table lets the engine reuse earlier search results when different move sequences lead to the same position. [Search implementation](search.cpp)
-- **Evaluation.** After a move such as e2–e4, the evaluator updates the pawn's contribution to its neural network. A king move changes the reference square used to encode pieces, so the engine rebuilds the accumulator. [Neural evaluator](nnue.h)
-
 ## Build from source
 
 Open `Chess.sln` in Visual Studio with the Desktop development with C++ workload, the MSVC v143 toolset, and the Windows SDK installed. Select **Release** and **x64**, then build the solution. The build copies the network weights from `nn_train` next to `build\x64\Release\Chess.exe`.

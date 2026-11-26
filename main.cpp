@@ -71,7 +71,7 @@ static std::vector<std::string> split(const std::string& s)
 
 int main()
 {
-	init_parameters("C:/Users/akhil/c++/repos/Chess/nn_train/nnue_params8_q.bin");
+	init_parameters();
 	init_zobrist_rng();
 	init_action_generator();
 	init_LAR_table();

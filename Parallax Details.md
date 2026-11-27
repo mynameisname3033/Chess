@@ -78,31 +78,39 @@ As mentioned, the algorithm I used is called negamax — a variant of the better
 
 To build intuition before diving into the technical details, let's walk through a simplified example: tic-tac-toe instead of chess. Say the board currently looks like this:
 
- *\| \|O*  
-*O\|X\|*  
-*X\|X\|O*
+```
+·|·|O
+O|X|·
+X|X|O
+```
 
 For a human, it's immediately obvious that the winning move is square 2, completing a vertical line for X. For a computer, though, this isn't obvious at all — it has to consider every possible move, and for each of those, every subsequent move, recursively, until each branch terminates in what's called a terminal node: an end state representing a tie, a win, or a loss.
 
 So let's step through it. The only legal moves are on squares 1, 2, and 6\. Suppose we start by playing square 1\. The board now looks like this:
 
-*X\| \|O*  
-*O\|X\|*  
-*X\|X\|O*
+```
+X|·|O
+O|X|·
+X|X|O
+```
 
 It's now O's turn, and we repeat the process. The only remaining moves are squares 2 and 6\. If O plays square 2 — I won't play out every detail — it's easy to see the game continues to a tie, with X forced onto square 6\. If O plays square 6 instead, the board looks like this:
 
-*X\| \|O*  
-*O\|X\|O*  
-*X\|X\|O*
+```
+X|·|O
+O|X|O
+X|X|O
+```
 
 This is a terminal node — O wins outright. That node returns a winning score to its parent, which in turn passes a losing score up to its own parent — the grandparent node, i.e., our starting position — since scores get negated as they propagate upward (more on that shortly). So, from the perspective of the starting position, playing square 1 nets a loss.
 
 With that branch exhausted, the computer “backtracks” automatically — one of the perks of recursion — returning to the starting position. Now we try the next candidate move, square 2\. The board looks like this:
 
- *\|X\|O*  
-*O\|X\|*  
-*X\|X\|O*
+```
+·|X|O
+O|X|·
+X|X|O
+```
 
 This time, no further recursion is even needed — it's already a terminal node, this time with X winning outright. We return a winning score immediately, which the parent node picks up as the best available move: X wins.
 

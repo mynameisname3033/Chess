@@ -27,7 +27,7 @@ Parallax played 1,328 local games against **six engines** at 10 seconds per side
 | Admete 1.9.0 | 3103 | 64 | 38–19–7 | 74.2% | +184 ± 74 |
 | Amoeba 3.4 | 3042 | 64 | 43–16–5 | 79.7% | +237 ± 78 |
 
-Match lengths varied because testing stopped early when the evidence favored either engine strongly enough. Overall, the results place the engine at **3170–3245** realistically. Note that these are estimates run from my own computer.
+Match lengths varied because testing stopped early when the evidence favored either engine strongly enough. Overall, the results place the engine at **3170 to 3245** realistically. Note that these are estimates run from my own computer.
 
 ## Try a search from the terminal
 

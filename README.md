@@ -1,6 +1,6 @@
 # Parallax
 
-I’m Akhil, and I started building Parallax because I wanted to understand how a chess engine chooses a move. I wrote up the decisions I made along the way, from fitting a move into 16 bits to teaching the engine to evaluate a position. It searches ahead with alpha-beta pruning and evaluates positions with an efficiently updatable neural network (NNUE). You can play against it or use it to analyze a position in a chess GUI.
+I’m Akhil, a high schooler, and I started building Parallax because I wanted to understand how a chess engine chooses a move. I wrote up the decisions I made along the way, from fitting a move into 16 bits to teaching the engine to evaluate a position. It searches ahead with alpha-beta pruning and evaluates positions with an efficiently updatable neural network (NNUE). You can play against it or use it to analyze a position in a chess GUI.
 
 [Download for Windows x64 (AVX2)](https://github.com/mynameisname3033/Chess/releases/latest/download/Chess-windows-x64-avx2.zip)
 

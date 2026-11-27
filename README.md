@@ -12,7 +12,7 @@ Read [Parallax Details](Parallax%20Details.md) for a walkthrough of the engine.
 2. In a UCI-compatible **chess GUI** such as Cute Chess, open the engine settings, add a new engine, choose UCI, and select the extracted `Chess.exe`.
 3. **Start a game** and select the engine as your opponent.
 
-Optionally, I sometimes host a running bot named ParallaxEngine on Lichess that you can play.
+Additionally, I sometimes host an open running bot, [ParallaxEngine](https://lichess.org/@/ParallaxEngine), on Lichess.
 
 ## Playing strength
 
